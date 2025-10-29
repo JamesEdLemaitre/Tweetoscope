@@ -1,5 +1,6 @@
 \documentclass[10pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
+\usepackage{graphicx}
 \author{James Lemaitre - François Thievon - Louca Malerba}
 \title{Tweetoscope}
 \begin{document}
@@ -18,5 +19,26 @@ Instead of writing the tokens inside of the code as a variable, it is a better p
 For professional projects, specialized tools like Azure Key Vault can be used. 
 
 Other tools can allow developpers to scan the changes before comitting automatically, or to scan a repository to check if secrets are included within the code. 
+
+\section{Implementing a new filter for recent twwets}
+
+To implement a new filter which will only select recent tweets (e.g. tweets that are less than 24 hours old), we mimic the way the LangTweetFilter class was implemented. 
+
+First, we add the valid option "-f recent" to make it possible to select this kind of filtering using parameters. 
+
+We made a correction in the given code for TweetoscopeApp: 
+
+if (cmd.hasOption(filteringStrategy)) {
+
+became
+
+if (cmd.hasOption(filteringStrategyOption)) {\\\\
+
+Testing the filtering strategy:
+
+To test the filtering strategy, we modified some lines in miniTestBase.txt so that the date was close enough to the current date. Starting the app resulted in a functionning dashboard with the recent tweets accepted. 
+
+\includegraphics[scale=1]{assets/recentfilterproof.png} 
+
 \end{document}
          
