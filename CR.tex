@@ -98,6 +98,10 @@ On peut déjà tester que ça fonctionne bien avec:
 
 kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic raw-tweets --from-beginning
 
+J'ai fait pareil pour KafkaTweetFilter. je n'ai cette fois-ci pas utilisé d'IA et j'ai fait que ce que je comprenais. Le problème est que je ne suis pas convaincu qu'il faille faire comme j'ai fait: je n'ai pas réutilisé la classe RecentTweetFilter mais je l'ai recréée de sorte à ce qu'elle n'ai pas de dépendance qui fasse qu'on doive utiliser .subscribe(...).
 
+À corriger si nécessaire, aussi pas ultra optimal de recréer le filter et le producer à chaque itération, je pense qu'on peut corriger en mettant ça en boucle englobant tout. 
+
+Au moins, la logique Consumer-Producer est bien implémenté :)
 \end{document}
          
