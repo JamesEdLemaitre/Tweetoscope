@@ -40,5 +40,39 @@ To test the filtering strategy, we modified some lines in miniTestBase.txt so th
 
 \includegraphics[scale=1]{assets/recentfilterproof.png} 
 
+\section{Architectural Choices}
+
+INSERT DIAGRAM
+
++ ADD "number of topics and partitions, structure of the exchanged messages, how messages are assigned to a partition, etc."
+
+\section{Risk Analysis / Initial Risk Analysis}
+
+\underline{Impact of failure for Tweet Producer}:
+
+New tweets are not received anymore by the application
+
+There won't be a crash, and restoring this element will result in the application working again normally.
+
+\underline{Impact of failure for Tweet Filter}:
+
+Raw tweets are not filtered and transmitted to the next components. Messages will accumulate in the raw-tweets topic. Restoring this element will result in the filtering of all raw tweets without any loss of information.
+
+\underline{Impact of failure for Hashtag Extractor}:
+
+Hashtags are not extracted anymore from the tweets. Filtered tweets will accumulate in the filtered-tweets topic. Restoring this element will result in the extraction of the filtered tweets hashtags without any loss of information.
+
+\underline{Impact of failure for Hashtag Counter}:
+
+Hashtags are not counted anymore. Without any additional measure, restoring this element may result in errors in the results: the memory of the amount of past appearance of each hashtags will be lost and reset to $0$. 
+
+\underline{Impact of failure for Visualizor}:
+
+It is not possible to see the results anymore. Restoring this element will allow to show the results again, without any error in the data shown. 
+
+\underline{Impact of failure of a Broker}:
+
+Failure of a broker will not be a problem if it is replicated. 
+
 \end{document}
          
