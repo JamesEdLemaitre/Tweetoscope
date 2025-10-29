@@ -74,5 +74,30 @@ It is not possible to see the results anymore. Restoring this element will allow
 
 Failure of a broker will not be a problem if it is replicated. 
 
+\section{Task 9}
+
+Section qui décrit ce que j'ai fait pour rendre reproductible facilement les premiers résultats:
+
+J'ai récupéré le code du TD pour avoir la base d'un code KafkaTweetProducer.java qui soit un producer qui lit les tweets produits par la lecture d'un fichier déjà créé. 
+
+Il faut bien faire attention à la structure du pom.xml car si on se trompe rien ne compile avec maven et on risque d'avoir des dépendances manquantes. 
+
+Une fois le fichier créé, on peut le compiler avec 
+
+mvn -f ./pom.xml clean package
+
+Puis lancer le subscriber avec:
+
+java -jar target/KafkaTweetProducer-jar-with-dependencies.jar
+
+Attention à bien penser à créer le topic:
+
+\$KAFKA_HOME/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic raw-tweets
+
+On peut déjà tester que ça fonctionne bien avec:
+
+kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic raw-tweets --from-beginning
+
+
 \end{document}
          
