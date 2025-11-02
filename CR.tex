@@ -90,9 +90,10 @@ Puis lancer le subscriber avec:
 
 (si pas fait, démarrer le serveur kafka:
 
-KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
-KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
-KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
+
+% KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
+% KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
+% KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
 
 )
 
@@ -100,7 +101,7 @@ java -jar target/KafkaTweetProducer-jar-with-dependencies.jar
 
 Attention à bien penser à créer le topic:
 
-\$KAFKA_HOME/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic raw-tweets
+% $KAFKA_HOME/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic raw-tweets
 
 On peut déjà tester que ça fonctionne bien avec:
 
@@ -117,6 +118,11 @@ Pour tester, ne pas oublier de remettre des dates adéquates dans le fichier.
 KafkaHashtagsExtractor implémenté de façon proche à KafkaTweetFilter, mis à part que je pense que ça se rapproche beaucoup plus de ce qu'il faut faire. 
 
 \includegraphics[scale=1]{assets/hashtagsproof.png} 
+
+Pareil pour le KafkaHashtagCounter 
+
+
+\includegraphics[scale=1]{assets/leaderboardtopicproof.png} 
 
 
 \end{document}

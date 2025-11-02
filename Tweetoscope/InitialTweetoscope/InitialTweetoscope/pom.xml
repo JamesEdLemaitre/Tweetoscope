@@ -117,6 +117,23 @@
                         </configuration>
 
                     </execution>
+
+                    <execution>
+                        <id>hashtagcounter</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <finalName>KafkaHashtagCounter</finalName>
+                            <archive>
+                                <manifest>
+                                    <mainClass>tweetoscope.kafka.KafkaHashtagCounter</mainClass>
+                                </manifest>
+                            </archive>
+                        </configuration>
+
+                    </execution>
                 </executions>
             </plugin>
         </plugins>

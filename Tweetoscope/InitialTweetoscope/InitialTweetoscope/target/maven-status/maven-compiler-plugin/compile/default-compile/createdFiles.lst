@@ -21,5 +21,6 @@ tweetoscope/tweetsFilter/TweetFilter.class
 tweetoscope/kafka/KafkaHashtagExtractor.class
 tweetoscope/kafka/KafkaTweetProducer.class
 tweetoscope/tweetsFilter/UserAccountCreationYearTweetFilter.class
+tweetoscope/kafka/KafkaHashtagCounter.class
 tweetoscope/kafka/KafkaTweetFilter$RecentTweetFilter.class
 tweetoscope/TweetoscopeApp.class
