@@ -88,6 +88,14 @@ mvn -f ./pom.xml clean package
 
 Puis lancer le subscriber avec:
 
+(si pas fait, démarrer le serveur kafka:
+
+KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
+KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
+KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
+
+)
+
 java -jar target/KafkaTweetProducer-jar-with-dependencies.jar
 
 Attention à bien penser à créer le topic:
@@ -103,5 +111,13 @@ J'ai fait pareil pour KafkaTweetFilter. je n'ai cette fois-ci pas utilisé d'IA 
 À corriger si nécessaire, aussi pas ultra optimal de recréer le filter et le producer à chaque itération, je pense qu'on peut corriger en mettant ça en boucle englobant tout. 
 
 Au moins, la logique Consumer-Producer est bien implémenté :)
+
+Pour tester, ne pas oublier de remettre des dates adéquates dans le fichier. 
+
+KafkaHashtagsExtractor implémenté de façon proche à KafkaTweetFilter, mis à part que je pense que ça se rapproche beaucoup plus de ce qu'il faut faire. 
+
+\includegraphics[scale=1]{assets/hashtagsproof.png} 
+
+
 \end{document}
          
