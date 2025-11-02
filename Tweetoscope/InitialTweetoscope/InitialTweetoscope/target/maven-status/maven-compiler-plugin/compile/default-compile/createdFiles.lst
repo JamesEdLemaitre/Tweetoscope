@@ -13,6 +13,7 @@ tweetoscope/tweetsProducer/TwitterSampledStreamReaderSingleton.class
 tweetoscope/tweetsFilter/OnlineTweetFilter.class
 tweetoscope/Visualizor.class
 tweetoscope/tweetsProducer/OfflineTweetsProducer.class
+tweetoscope/kafka/KafkaLeaderboard$1.class
 tweetoscope/tweetsFilter/RecentTweetFilter.class
 tweetoscope/kafka/KafkaTweetProducer$1.class
 tweetoscope/tweetsFilter/CountryCodeTweetFilter.class
@@ -24,3 +25,4 @@ tweetoscope/tweetsFilter/UserAccountCreationYearTweetFilter.class
 tweetoscope/kafka/KafkaHashtagCounter.class
 tweetoscope/kafka/KafkaTweetFilter$RecentTweetFilter.class
 tweetoscope/TweetoscopeApp.class
+tweetoscope/kafka/KafkaLeaderboard.class

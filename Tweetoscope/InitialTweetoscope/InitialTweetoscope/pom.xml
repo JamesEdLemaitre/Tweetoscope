@@ -134,6 +134,23 @@
                         </configuration>
 
                     </execution>
+
+                    <execution>
+                        <id>leaderboard</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <finalName>KafkaLeaderboard</finalName>
+                            <archive>
+                                <manifest>
+                                    <mainClass>tweetoscope.kafka.KafkaLeaderboard</mainClass>
+                                </manifest>
+                            </archive>
+                        </configuration>
+
+                    </execution>
                 </executions>
             </plugin>
         </plugins>
