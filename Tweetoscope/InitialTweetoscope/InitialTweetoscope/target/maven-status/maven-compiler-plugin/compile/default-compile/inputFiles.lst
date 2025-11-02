@@ -6,6 +6,7 @@
 /config/PersistentDir/3MD1510_IAL/Tweetoscope/InitialTweetoscope/src/main/java/tweetoscope/TweetoscopeApp.java
 /config/PersistentDir/3MD1510_IAL/Tweetoscope/InitialTweetoscope/src/main/java/tweetoscope/tweetsProducer/MockTwitterStreamRecorded.java
 /config/PersistentDir/3MD1510_IAL/Tweetoscope/InitialTweetoscope/src/main/java/tweetoscope/tweetsProducer/TwitterFilteredStreamReaderSingleton.java
+/config/PersistentDir/3MD1510_IAL/Tweetoscope/InitialTweetoscope/src/main/java/tweetoscope/kafka/KafkaHashtagExtractor.java
 /config/PersistentDir/3MD1510_IAL/Tweetoscope/InitialTweetoscope/src/main/java/tweetoscope/tweetsProducer/TweetsProducer.java
 /config/PersistentDir/3MD1510_IAL/Tweetoscope/InitialTweetoscope/src/main/java/tweetoscope/HashtagExtractor.java
 /config/PersistentDir/3MD1510_IAL/Tweetoscope/InitialTweetoscope/src/main/java/tweetoscope/tweetsProducer/OnlineTweetsProducer.java

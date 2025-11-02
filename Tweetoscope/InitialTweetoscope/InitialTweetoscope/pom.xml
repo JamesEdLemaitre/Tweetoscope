@@ -101,6 +101,22 @@
                         </configuration>
 
                     </execution>
+                    <execution>
+                        <id>hashtagextractor</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <finalName>KafkaHashtagExtractor</finalName>
+                            <archive>
+                                <manifest>
+                                    <mainClass>tweetoscope.kafka.KafkaHashtagExtractor</mainClass>
+                                </manifest>
+                            </archive>
+                        </configuration>
+
+                    </execution>
                 </executions>
             </plugin>
         </plugins>
