@@ -41,9 +41,39 @@ public class KafkaTweetFilter {
                             OffsetDateTime.parse(json.getAsString(), DateTimeFormatter.ISO_OFFSET_DATE_TIME))
             .create();
 
+    private static Object filter = new EmptyTweetFilter();
+
     public static void main(String[] args) {
-        new KafkaTweetFilter();
+        System.out.println("Parsing parameters from command line");
+        if (args.length == 0) {
+            long maxAge = 24;
+            filter = new RecentTweetFilter(maxAge);
+            System.out.println("Starting Filtering Tweets using recent filter");
+            new KafkaTweetFilter();
+        } else {
+            switch (args[0]) {
+                case "recent":
+                    long maxAge = 24;
+                    filter = new RecentTweetFilter(maxAge);
+                    System.out.println("Starting Filtering Tweets using recent filter");
+                    new KafkaTweetFilter();
+                    break;
+                case "lang":
+                    String language = args.length > 1 ? args[1] : "en";
+                    filter = new LangTweetFilter(language);
+                    System.out.println("Starting Filtering Tweets using language filter");
+                    new KafkaTweetFilter();
+                    break;
+                case "empty":
+                default:
+                    filter = new EmptyTweetFilter();
+                    System.out.println("Starting Filtering Tweets using no empty tweet filter");
+                    new KafkaTweetFilter();
+                    break;
+            }
+        }
     }
+
 
     KafkaTweetFilter() {
         try (KafkaProducer<Void, String> kafkaProducer = new KafkaProducer<>(configureKafkaProducer())) {
@@ -55,10 +85,12 @@ public class KafkaTweetFilter {
                 try {
                     Duration timeout = Duration.ofMillis(1000);
                     ConsumerRecords<Void, String> records = null;
+
+                    // Deprecated:
                     // Uncomment the desired filter:
                     // RecentTweetFilter filter = new RecentTweetFilter(24);
                     // LangTweetFilter filter = new LangTweetFilter("en");
-                    EmptyTweetFilter filter = new EmptyTweetFilter();
+                    // EmptyTweetFilter filter = new EmptyTweetFilter();
 
                     while (true) { // I'm a machine, I can work forever :-)
                         // System.out.println("Test");
@@ -72,13 +104,21 @@ public class KafkaTweetFilter {
                             // PART 2: Make filter
 
                             // Apply filter:
-                            System.out.println("Test1");
-                            if (filter.match(tweet)) {
-                                System.out.println("Test2");
+                            boolean matches = false;
+                            if (filter instanceof RecentTweetFilter) {
+                                matches = ((RecentTweetFilter) filter).match(tweet);
+                            } else if (filter instanceof LangTweetFilter) {
+                                matches = ((LangTweetFilter) filter).match(tweet);
+                            } else if (filter instanceof EmptyTweetFilter) {
+                                matches = ((EmptyTweetFilter) filter).match(tweet);
+                            }
+
+                            if (matches) {
                                 // PART 3: If the tweet matches the filter, produce to filtered-tweets topic:
                                 String tweetJson = gson.toJson(tweet);
                                 kafkaProducer.send(new ProducerRecord<Void, String>(OUTPUT_TOPIC_NAME, null, tweetJson));
                             }
+
                         }
                     }
                 } catch (Exception e) {
@@ -148,6 +188,10 @@ public class KafkaTweetFilter {
             return !tweet.getText().trim().isEmpty();
         }
     }
+
+    // CountryCodeTweetFilter not done, uses Twitter api.
+    // Same for UserAccountCreationDate.
+
 
 
 }
