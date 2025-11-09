@@ -65,7 +65,7 @@ public class KafkaTweetFilter {
 
                         // PART 2: Make filter // NOTE AMELIORATION: A METTRE EN DEHORS DE LA BOUCLE POUR EVITER DE RECREER LE FILTER A CHAQUE FOIS
                         // for now, we will only work with recent filter
-                        KafkaTweetFilter.RecentTweetFilter filter = new KafkaTweetFilter.RecentTweetFilter(24);
+                        RecentTweetFilter filter = new RecentTweetFilter(24);
 
                         // Apply filter:
                         if (filter.match(tweet)) {
