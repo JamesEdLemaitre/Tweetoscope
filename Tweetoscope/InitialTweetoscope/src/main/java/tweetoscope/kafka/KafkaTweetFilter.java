@@ -57,7 +57,8 @@ public class KafkaTweetFilter {
                     ConsumerRecords<Void, String> records = null;
                     // Uncomment the desired filter:
                     // RecentTweetFilter filter = new RecentTweetFilter(24);
-                    LangTweetFilter filter = new LangTweetFilter("en");
+                    // LangTweetFilter filter = new LangTweetFilter("en");
+                    EmptyTweetFilter filter = new EmptyTweetFilter();
 
                     while (true) { // I'm a machine, I can work forever :-)
                         // System.out.println("Test");
@@ -71,7 +72,9 @@ public class KafkaTweetFilter {
                             // PART 2: Make filter
 
                             // Apply filter:
+                            System.out.println("Test1");
                             if (filter.match(tweet)) {
+                                System.out.println("Test2");
                                 // PART 3: If the tweet matches the filter, produce to filtered-tweets topic:
                                 String tweetJson = gson.toJson(tweet);
                                 kafkaProducer.send(new ProducerRecord<Void, String>(OUTPUT_TOPIC_NAME, null, tweetJson));
@@ -139,4 +142,12 @@ public class KafkaTweetFilter {
         }
 
     }
+
+    static class EmptyTweetFilter {
+        protected boolean match(Tweet tweet) {
+            return !tweet.getText().trim().isEmpty();
+        }
+    }
+
+
 }

@@ -15,6 +15,7 @@ tweetoscope/Visualizor.class
 tweetoscope/tweetsProducer/OfflineTweetsProducer.class
 tweetoscope/kafka/KafkaLeaderboard$1.class
 tweetoscope/tweetsFilter/RecentTweetFilter.class
+tweetoscope/kafka/KafkaTweetFilter$EmptyTweetFilter.class
 tweetoscope/kafka/KafkaTweetProducer$1.class
 tweetoscope/tweetsFilter/CountryCodeTweetFilter.class
 tweetoscope/HashtagCounter.class
