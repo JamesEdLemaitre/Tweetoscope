@@ -46,42 +46,43 @@ public class KafkaTweetFilter {
     }
 
     KafkaTweetFilter() {
-        try (KafkaConsumer<Void, String> kafkaConsumer = new KafkaConsumer<>(configureKafkaConsumer())) {
-            // subscribes to the 'test' topic
-            kafkaConsumer.subscribe(Collections.singletonList(INPUT_TOPIC_NAME));
+        try (KafkaProducer<Void, String> kafkaProducer = new KafkaProducer<>(configureKafkaProducer())) {
+            try (KafkaConsumer<Void, String> kafkaConsumer = new KafkaConsumer<>(configureKafkaConsumer())) {
+                // subscribes to the 'test' topic
+                kafkaConsumer.subscribe(Collections.singletonList(INPUT_TOPIC_NAME));
 
-            // reads from the topic
-            try {
-                Duration timeout = Duration.ofMillis(1000);
-                ConsumerRecords<Void, String> records = null;
-                while (true) { // I'm a machine, I can work forever :-)
-                    // System.out.println("Test");
-                    records = kafkaConsumer.poll(timeout);
-                    for (ConsumerRecord<Void, String> record : records) {
-                        // PART 1: Consume raw tweets from raw-tweets
-                        String record_value = record.value();
-                        Tweet tweet = gson.fromJson(record_value, Tweet.class);
+                // reads from the topic
+                try {
+                    Duration timeout = Duration.ofMillis(1000);
+                    ConsumerRecords<Void, String> records = null;
+                    // Uncomment the desired filter:
+                    // RecentTweetFilter filter = new RecentTweetFilter(24);
+                    LangTweetFilter filter = new LangTweetFilter("en");
+
+                    while (true) { // I'm a machine, I can work forever :-)
+                        // System.out.println("Test");
+                        records = kafkaConsumer.poll(timeout);
+                        for (ConsumerRecord<Void, String> record : records) {
+                            // PART 1: Consume raw tweets from raw-tweets
+                            String record_value = record.value();
+                            Tweet tweet = gson.fromJson(record_value, Tweet.class);
 
 
-                        // PART 2: Make filter // NOTE AMELIORATION: A METTRE EN DEHORS DE LA BOUCLE POUR EVITER DE RECREER LE FILTER A CHAQUE FOIS
-                        // for now, we will only work with recent filter
-                        RecentTweetFilter filter = new RecentTweetFilter(24);
+                            // PART 2: Make filter
 
-                        // Apply filter:
-                        if (filter.match(tweet)) {
-                            // PART 3: If the tweet matches the filter, produce to filtered-tweets topic:
-                            // NOTE AMELIORATION: A METTRE EN DEHORS DE LA BOUCLE POUR EVITER DE RECREER LE PRODUCER A CHAQUE FOIS
-                            try (KafkaProducer<Void, String> kafkaProducer = new KafkaProducer<>(configureKafkaProducer())) {
+                            // Apply filter:
+                            if (filter.match(tweet)) {
+                                // PART 3: If the tweet matches the filter, produce to filtered-tweets topic:
                                 String tweetJson = gson.toJson(tweet);
                                 kafkaProducer.send(new ProducerRecord<Void, String>(OUTPUT_TOPIC_NAME, null, tweetJson));
                             }
                         }
                     }
+                } catch (Exception e) {
+                    System.err.println("something went wrong... " + e.getMessage());
+                } finally {
+                    kafkaConsumer.close();
                 }
-            } catch (Exception e) {
-                System.err.println("something went wrong... " + e.getMessage());
-            } finally {
-                kafkaConsumer.close();
             }
         }
     }
@@ -122,5 +123,20 @@ public class KafkaTweetFilter {
 
             return ageHours <= this.maxAge;
         }
+    }
+
+    static class LangTweetFilter {
+        protected String language;
+
+        public LangTweetFilter(String language) {
+            this.language = language;
+        }
+
+        protected boolean match(Tweet tweet) {
+            String tweetLang = tweet.getLang();
+
+            return tweetLang.equals(this.language);
+        }
+
     }
 }

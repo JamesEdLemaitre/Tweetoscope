@@ -41,7 +41,7 @@ import java.time.OffsetDateTime;
 
 public class KafkaTweetProducer {
 
-    protected String fileName = "/config/PersistentDir/3MD1510_IAL/Tweetoscope/InitialTweetoscope/TestBases/miniTestBase.txt";
+    protected String fileName = "/config/PersistentDir/tweetoscope25_group-10_lemaitre_thievon_malerba/Tweetoscope/InitialTweetoscope/TestBases/miniTestBase.txt";
     private static final String TOPIC_NAME = "raw-tweets";
 
     public static void main(String[] args) {
