@@ -74,65 +74,172 @@ It is not possible to see the results anymore. Restoring this element will allow
 
 Failure of a broker will not be a problem if it is replicated. 
 
+
 \section{Task 9}
 
-Section qui décrit ce que j'ai fait pour rendre reproductible facilement les premiers résultats:
+\subsection{Compilation}
 
-J'ai récupéré le code du TD pour avoir la base d'un code KafkaTweetProducer.java qui soit un producer qui lit les tweets produits par la lecture d'un fichier déjà créé. 
-
-Il faut bien faire attention à la structure du pom.xml car si on se trompe rien ne compile avec maven et on risque d'avoir des dépendances manquantes. 
-
-Une fois le fichier créé, on peut le compiler avec 
+Tous les composants Kafka ont été implémentés en Java et compilés avec Maven. La compilation s'effectue avec la commande suivante :
 
 mvn -f ./pom.xml clean package
 
-Puis lancer le subscriber avec:
+Note importante : La structure du pom.xml a dû être modifiée pour être correcte pour éviter des erreurs de compilation et des dépendances manquantes. C'est cette commande qui crée tous les .jar qui seront exécutés dans le terminal pour lancer les services Kafka. 
 
-(si pas fait, démarrer le serveur kafka:
+Les fichiers .jar sont créés sous :
 
+target/<Nom du service>-jar-with-dependencies.jar
 
-% KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
-% $KAFKA_HOME/bin/kafka-storage.sh format --standalone -t $KAFKA_CLUSTER_ID -c $KAFKA_HOME/config/server.properties
-% $KAFKA_HOME/bin/kafka-server-start.sh $KAFKA_HOME/config/server.properties
-
-)
-
-export tweetoscope_sourcefile="/config/PersistentDir/tweetoscope25_group-10_lemaitre_thievon_malerba/Tweetoscope/InitialTweetoscope/TestBases"
+Par exemple, pour le producer des raw-tweets:
 
 java -jar target/KafkaTweetProducer-jar-with-dependencies.jar
 
-Attention à bien penser à créer le topic:
+\subsection{Serveur Kafka}
+
+Avant de lancer les composants, le serveur Kafka doit être démarré :
+
+Génération d'un UUID pour le cluster:
+
+% KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
+
+Formatage du storage :
+
+%$KAFKA_HOME/bin/kafka-storage.sh format --standalone -t $KAFKA_CLUSTER_ID -c $KAFKA_HOME/config/server.properties
+
+Démarrage du serveur Kafka :
+
+% $KAFKA_HOME/bin/kafka-server-start.sh $KAFKA_HOME/config/server.properties
+
+
+\subsection{Création des topics}
+
+Les topics nécessaires doivent être créés avant le lancement des composants :
+
+Topic pour les tweets bruts:
 
 % $KAFKA_HOME/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic raw-tweets
 
-On peut déjà tester que ça fonctionne bien avec:
+Topic pour les tweets filtrés:
 
-kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic raw-tweets --from-beginning
+% $KAFKA_HOME/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic filtered-tweets
 
-J'ai fait pareil pour KafkaTweetFilter. je n'ai cette fois-ci pas utilisé d'IA et j'ai fait que ce que je comprenais. Le problème est que je ne suis pas convaincu qu'il faille faire comme j'ai fait: je n'ai pas réutilisé la classe RecentTweetFilter mais je l'ai recréée de sorte à ce qu'elle n'ai pas de dépendance qui fasse qu'on doive utiliser .subscribe(...).
+Topic pour les hashtags extraits:
 
-À corriger si nécessaire, aussi pas ultra optimal de recréer le filter et le producer à chaque itération, je pense qu'on peut corriger en mettant ça en boucle englobant tout. 
+% $KAFKA_HOME/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic hashtags
 
-Au moins, la logique Consumer-Producer est bien implémenté :)
+Topic pour le leaderboard
 
-Pour tester, ne pas oublier de remettre des dates adéquates dans le fichier. 
+% $KAFKA_HOME/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic leaderboard
 
-KafkaHashtagsExtractor implémenté de façon proche à KafkaTweetFilter, mis à part que je pense que ça se rapproche beaucoup plus de ce qu'il faut faire. 
+\subsection{Lancement des composants}
+
+\textbf{KafkaTweetProducer}
+
+Commande:
+
+java -jar target/KafkaTweetProducer-jar-with-dependencies.jar [random|recorded]
+
+Options:
+
+\begin{enumerate}
+\item random: implémente le producer random présent dans la version initiale du projet. 
+
+\item recorded: implémente le producer lisant un fichier contenant des tweets au format .json.
+
+Pour l'utiliser, il faut bien penser à créer une variable d'environnement précisant où se trouve le fichier source:
+
+export tweetoscope\_sourcefile="..."
+
+Contrairement au random, il ne fonctionne pas indéfiniment. Il ne lit qu'une seule fois le contenu du fichier puis s'arrête. 
+ 
+\end{enumerate}
+
+\textbf{KafkaTweetFilter}
+
+Ce composant consomme les tweets du topic raw-tweets, les filtre et publie les tweets filtrés dans filtered-tweets :
+
+java -jar target/KafkaTweetFilter-jar-with-dependencies.jar [option] [paramètre]
+
+Note d'implémentation : La classe RecentTweetFilter a été réimplémentée sans utiliser le pattern .subscribe(). Cette approche diffère du code initial mais respecte le modèle consumer-producer de Kafka.
+
+Options:
+
+\begin{enumerate}
+\item recent 
+
+Comportement : Ne conserve que les tweets créés il y a moins de 24 heures.
+
+Critère : Compare la date de création du tweet (createdAt) avec l'heure actuelle.
+
+\item lang [codelangue] 
+
+Comportement : Ne conserve que les tweets dans la langue spécifiée. Si aucun code de langue n'est fourni, "en" (anglais) est utilisé par défaut.
+
+Critère : Compare le champ lang du tweet avec le code langue fourni.
+
+\item empty
+
+Comportement : Ne filtre que les tweets ayant un contenu textuel non vide (après suppression des espaces).
+
+\end{enumerate}
+
+\textbf{KafkaHashtagExtractor}
+
+Ce composant consomme les tweets filtrés et extrait les hashtags :
+
+java -jar target/KafkaHashtagsExtractor-jar-with-dependencies.jar
+
+\textbf{KafkaHashtagCounter}
+
+Ce composant compte les occurrences de chaque hashtag et publie les résultats dans le topic leaderboard :
+java -jar target/KafkaHashtagCounter-jar-with-dependencies.jar
+
+\textbf{Leaderboard}
+
+Ce composant consomme le topic leaderboard et affiche les résultats :
+
+java -jar target/KafkaLeaderboard-jar-with-dependencies.jar
+
+\subsection{Tests et vérifications}
+
+À chaque étape d'implémentation, il est possible de vérifier que la chaîne fonctionne, grâce à un consommateur dans le terminal:
+
+% $KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic raw-tweets --from-beginning
+
+% $KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic filtered-tweets --from-beginning
+
+% $KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic hashtags --from-beginning
+
+% $KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic leaderboard --from-beginning
+
+\textbf{IMPORTANT}
+
+Important : Avant de lancer les tests avec des fichiers enregistrés, vérifier et ajuster les dates dans le fichier de tweets pour qu'elles correspondent aux critères de filtrage (notamment pour le RecentTweetFilter).
+
+\subsection{Preuves de résultat}
+
+Les captures d'écran suivantes démontrent le bon fonctionnement de la chaîne de traitement :
+
+Extraction des hashtags : 
 
 \includegraphics[scale=1]{assets/hashtagsproof.png} 
 
-Pareil pour le KafkaHashtagCounter 
+
+Publication du leaderboard :
 
 
 \includegraphics[scale=1]{assets/leaderboardtopicproof.png} 
 
-Leaderboard fait mais attention par IA, donc à reprendre par nous même. 
+
+Affichage du leaderboard avec le filtre 'recent':
 
 
+\includegraphics[scale=1]{assets/recentfilterproof.png} 
 
-Puis ajout de export pour le chemin vers le fichier
+Génération aléatoire:
 
-Puis ajout de l'option de génération random pour les tweets dans le producer initial. rajouter random ou recorded en option pour choisir ce qu'on veut. 
+\includegraphics[scale=1]{assets/randomproof.png} 
 
+
+ 
 \end{document}
          
