@@ -240,6 +240,68 @@ Génération aléatoire:
 \includegraphics[scale=1]{assets/randomproof.png} 
 
 
+\section{Vérification expérimentale de l'analyse des risques}
+
+\subsection{Défaillance du Tweet Producer}
+
+Gravité: Moyenne à forte
+
+$\rightarrow$ Le leaderboard reste affiché avec des informations qui deviennent de plus en plus fausses pendant la durée de la panne. Le problème est que remettre le producer en route (en supposant qu'on est Online, connectés à l'API) ne nous permet pas de récupérer les Tweets publiés entre temps. Les informations affichées seront donc faussées durant une certaine période, qui peut dépendre par exemple du temps mis dans le filtre "recent" s'il est utilisé. 
+
+Détectabilité: Moyenne ou forte
+
+$\rightarrow$ Il n'y a pas de message d'erreur, mais on remarquera assez facilement que le leaderboard ne se met plus à jour
+
+\subsection{Défaillance du Tweet Filter}
+
+Gravité: Faible
+
+$\rightarrow$ Les tweets bruts s'accumulent dans le topic \texttt{raw-tweets} sans être traités. Le reste de la chaîne continue de fonctionner normalement avec les derniers tweets filtrés. Aucun composant ne crashe. Lorsque le filtre est relancé, il reprend le traitement de tous les tweets accumulés grâce au mécanisme de consumer groups de Kafka, sans perte de données.
+
+Détectabilité: Moyenne
+
+$\rightarrow$ Aucun message d'erreur visible. On peut détecter la panne en vérifiant le lag du consumer group qui augmente progressivement, ou en constatant que de nouveaux tweets ne sont plus filtrés alors que le producer continue de publier.
+
+\subsection{Défaillance du Hashtag Extractor}
+
+Gravité: Faible
+
+$\rightarrow$ Les tweets filtrés s'accumulent dans le topic \texttt{filtered-tweets} sans que les hashtags soient extraits. Le comportement est similaire à la défaillance du filtre : le système reste stable, les messages s'accumulent, et la reprise du service permet de traiter l'intégralité des tweets en attente sans perte de données.
+
+Détectabilité: Moyenne
+
+$\rightarrow$ Pas de message d'erreur. La détection se fait par l'observation du lag du consumer group correspondant, ou par l'absence de mise à jour du leaderboard alors que de nouveaux tweets filtrés arrivent.
+
+\subsection{Défaillance du Hashtag Counter}
+
+Gravité: Forte
+
+$\rightarrow$ Les hashtags extraits s'accumulent dans le topic \texttt{hashtags} mais ne sont plus comptabilisés. Le problème majeur confirmé expérimentalement est la \textbf{perte de l'état en mémoire} : lorsque le counter est relancé, les compteurs repartent à zéro. Les hashtags reçus pendant la panne sont bien traités à la reprise, mais l'historique des comptages précédents est perdu, ce qui fausse complètement les résultats du leaderboard.
+
+Détectabilité: Forte
+
+$\rightarrow$ La détection est immédiate après redémarrage : on observe que les compteurs ont été réinitialisés (ex: un hashtag qui était à 50 apparitions repasse à 0 ou à un petit nombre). Cette anomalie dans les valeurs affichées permet de détecter rapidement qu'il y a eu une défaillance.
+
+\subsection{Défaillance du Visualiseur}
+
+Gravité: Très faible
+
+$\rightarrow$ L'affichage du leaderboard n'est plus disponible, mais toute la chaîne de traitement continue de fonctionner normalement. Les résultats continuent d'être produits et publiés dans le topic \texttt{leaderboard}. Lorsque le visualiseur est relancé, il affiche immédiatement les dernières données disponibles sans aucune perte d'information.
+
+Détectabilité: Immédiate
+
+$\rightarrow$ L'absence d'affichage est immédiatement visible pour l'utilisateur. Cependant, on peut vérifier que les données continuent d'être produites en consultant directement le topic \texttt{leaderboard} avec un consumer console.
+
+\subsection{Défaillance d'un Broker}
+
+Gravité: Critique (sans réplication) / Faible (avec réplication)
+
+$\rightarrow$ Dans notre configuration actuelle avec un seul broker (\texttt{replication-factor=1}), la défaillance du broker entraîne l'arrêt complet de l'application : tous les topics deviennent inaccessibles et tous les composants sont bloqués. Avec une configuration répliquée sur plusieurs brokers, la défaillance d'un broker n'affecterait pas le fonctionnement global grâce à la redistribution automatique des partitions sur les brokers restants.
+
+Détectabilité: Immédiate
+
+$\rightarrow$ Tous les composants génèrent des erreurs de connexion et l'application s'arrête complètement. La détection est donc immédiate.
+
  
 \end{document}
          
