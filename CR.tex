@@ -42,9 +42,60 @@ To test the filtering strategy, we modified some lines in miniTestBase.txt so th
 
 \section{Architectural Choices}
 
-INSERT DIAGRAM
+\begin{center}
+\includegraphics[scale=0.6]{assets/diagram.png} 
+\end{center}
 
-+ ADD "number of topics and partitions, structure of the exchanged messages, how messages are assigned to a partition, etc."
+\subsection{Choix du nombre de partitions}
+
+Le dimensionnement des partitions pour chaque topic est justifié par les conditions réelles d'exploitation et les volumes de données attendus :
+
+\subsubsection{Topic \texttt{raw-tweets} : 1 partition}
+
+\textbf{Justification :} Dans un contexte de production réel avec un volume important de tweets (millions par jour), ce topic nécessiterait plusieurs partitions pour paralléliser l'ingestion. Cependant, pour ce TP avec un dataset limité et un besoin de préserver l'ordre chronologique des tweets lors de leur lecture, une seule partition suffit et simplifie l'implémentation.
+
+\subsubsection{Topic \texttt{filtered-tweets} : 1 partition}
+
+\textbf{Justification :} Le filtrage réduit considérablement le volume de données. Même en production avec de gros volumes initiaux, le débit après filtrage restrait gérable par une seule partition pour un grand nombre de données(ou en tout cas, beaucoup moins qu'inititalement). 
+
+\subsubsection{Topic \texttt{hashtags} : 3 partitions}
+
+\textbf{Justification :} C'est le topic critique nécessitant du partitionnement :
+\begin{itemize}
+    \item \textbf{Volume élevé :} Chaque tweet peut contenir plusieurs hashtags, multipliant le nombre de messages
+    \item \textbf{Cohérence du comptage :} Le partitionnement par clé (hashtag) garantit que tous les messages concernant un même hashtag arrivent à la même partition, permettant un comptage cohérent
+    \item \textbf{Parallélisation :} 3 partitions permettent de distribuer la charge sur 3 instances de \texttt{KafkaHashtagCounter} via un consumer group
+\end{itemize}
+
+Le nombre de 3 est indicatif comme les autres, basé sur le fait qu'on s'attend à avoir environ 3 hashtags par tweet en moyenne. Pour le TP, une seule partitiuon suffit. 
+
+\subsubsection{Topic \texttt{leaderboard} : 1 partition}
+
+\textbf{Justification :} Ce topic contient uniquement les agrégations finales (top N hashtags), donc un très faible volume de messages. Une seule partition suffit et permet de préserver l'ordre temporel des mises à jour du classement pour l'affichage.
+
+\subsection{Stratégie de partitionnement}
+
+\begin{table}[h]
+\centering
+\caption{Configuration des topics et stratégies de partitionnement}
+\begin{tabular}{|l|c|c|l|}
+\hline
+\textbf{Topic} & \textbf{Partitions} & \textbf{Clé} & \textbf{Stratégie d'assignation} \\
+\hline
+raw-tweets & 1 & null & Round-robin (par défaut) \\
+\hline
+filtered-tweets & 1 & null & Round-robin (par défaut) \\
+\hline
+hashtags & 3 & hashtag & Hash-based: \texttt{hash(key) \% 3} \\
+\hline
+leaderboard & 1 & null & Round-robin (par défaut) \\
+\hline
+\end{tabular}
+\label{tab:partitioning-strategy}
+\end{table}
+
+\textbf{Note importante :} Lorsque la clé est \texttt{null}, Kafka utilise une stratégie round-robin pour distribuer les messages équitablement entre les partitions disponibles. Dans notre cas avec 1 partition, tous les messages vont naturellement à cette unique partition.
+
 
 \section{Risk Analysis / Initial Risk Analysis}
 
