@@ -92,10 +92,12 @@ Puis lancer le subscriber avec:
 
 
 % KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
-% KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
-% KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
+% $KAFKA_HOME/bin/kafka-storage.sh format --standalone -t $KAFKA_CLUSTER_ID -c $KAFKA_HOME/config/server.properties
+% $KAFKA_HOME/bin/kafka-server-start.sh $KAFKA_HOME/config/server.properties
 
 )
+
+export tweetoscope_sourcefile="/config/PersistentDir/tweetoscope25_group-10_lemaitre_thievon_malerba/Tweetoscope/InitialTweetoscope/TestBases"
 
 java -jar target/KafkaTweetProducer-jar-with-dependencies.jar
 
