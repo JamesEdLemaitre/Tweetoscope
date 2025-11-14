@@ -41,14 +41,18 @@ import java.time.OffsetDateTime;
 
 public class KafkaTweetProducer {
 
-    protected String fileName = "/config/PersistentDir/tweetoscope25_group-10_lemaitre_thievon_malerba/Tweetoscope/InitialTweetoscope/TestBases/miniTestBase.txt";
+    protected String fileName;
     private static final String TOPIC_NAME = "raw-tweets";
+    private static final String ENV_VAR_NAME = "tweetoscope_sourcefile";
 
     public static void main(String[] args) {
         new KafkaTweetProducer();
     }
 
     KafkaTweetProducer() {
+
+        this.fileName = System.getenv(ENV_VAR_NAME);
+
         try (KafkaProducer<Void, String> kafkaProducer = new KafkaProducer<>(configureKafkaProducer())) {
             TweetsProducer tweetsProducer = null;
 
