@@ -41,23 +41,44 @@ import java.time.OffsetDateTime;
 
 public class KafkaTweetProducer {
 
-    protected String fileName;
+    protected static String fileName;
     private static final String TOPIC_NAME = "raw-tweets";
     private static final String ENV_VAR_NAME = "tweetoscope_sourcefile";
 
+    private static TweetsProducer tweetsProducer;
+
     public static void main(String[] args) {
-        new KafkaTweetProducer();
+        if (args.length == 0) {
+            tweetsProducer = new MockTwitterStreamRandom();
+            System.out.println("Starting producing random tweets");
+            new KafkaTweetProducer();
+        } else {
+            switch (args[0]) {
+                case "random":
+                    tweetsProducer = new MockTwitterStreamRandom();
+                    System.out.println("Starting producing random tweets");
+                    new KafkaTweetProducer();
+                case "recorded":
+                    fileName = System.getenv(ENV_VAR_NAME);
+
+                    if (fileName == null || fileName.isEmpty()) {
+                        System.err.println("Erreur: La variable d'environnement '" + ENV_VAR_NAME + "' n'est pas définie ou est vide pour le mode 'recorded'.");
+                        System.exit(1);
+                    }
+
+                    tweetsProducer = new MockTwitterStreamRecorded(fileName);
+                    System.out.println("Starting producing pre-recorded tweets");
+                    new KafkaTweetProducer();
+            }
+        }
     }
 
     KafkaTweetProducer() {
 
-        this.fileName = System.getenv(ENV_VAR_NAME);
-
         try (KafkaProducer<Void, String> kafkaProducer = new KafkaProducer<>(configureKafkaProducer())) {
-            TweetsProducer tweetsProducer = null;
+            // TweetsProducer tweetsProducer = null;
 
             // For now, let's only code for a recorded stream:
-            tweetsProducer = new MockTwitterStreamRecorded(fileName);
 
             // On ajoute la logique de lecture décrite dans MockTwitterStreamRecorder.java
             Gson gson = new GsonBuilder()
