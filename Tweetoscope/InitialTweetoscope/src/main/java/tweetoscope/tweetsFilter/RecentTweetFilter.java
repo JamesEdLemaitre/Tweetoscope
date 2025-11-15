@@ -1,9 +1,9 @@
 package tweetoscope.tweetsFilter;
 
-import com.twitter.clientlib.model.Tweet;
-
 import java.time.Duration;
 import java.time.OffsetDateTime;
+
+import com.twitter.clientlib.model.Tweet;
 
 public class RecentTweetFilter extends TweetFilter {
     protected long maxAge;
@@ -14,7 +14,13 @@ public class RecentTweetFilter extends TweetFilter {
 
     @Override
     protected boolean match(Tweet tweet) {
+        if (tweet == null) {
+            return false;
+        }
         OffsetDateTime tweetDate = tweet.getCreatedAt();
+        if (tweetDate == null) {
+            return false;
+        }
         OffsetDateTime now = OffsetDateTime.now();
         long ageHours = Duration.between(tweetDate, now).toHours();
 

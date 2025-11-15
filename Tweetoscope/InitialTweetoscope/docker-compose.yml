@@ -1,0 +1,170 @@
+version: '3.8'
+
+services:
+  # Service Kafka en mode KRaft (sans Zookeeper)
+  kafka:
+    image: apache/kafka:latest
+    container_name: kafka
+    environment:
+      # Configuration KRaft
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      CLUSTER_ID: MkwNYQ3MQ1OUscuL1SrJqQ
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "test", "-f", "/var/lib/kafka/data/__cluster_metadata-0/00000000000000000000.log"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - tweetoscope
+
+  # Service de création des topics Kafka
+  topic-creator:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: topic-creator
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: >
+      bash -c "
+      echo 'Waiting for Kafka to be ready...' &&
+      sleep 10 &&
+      echo 'Creating topics...' &&
+      /usr/bin/kafka-topics --create --bootstrap-server kafka:9092 --topic raw-tweets --partitions 3 --replication-factor 1 --if-not-exists &&
+      /usr/bin/kafka-topics --create --bootstrap-server kafka:9092 --topic filtered-tweets --partitions 3 --replication-factor 1 --if-not-exists &&
+      /usr/bin/kafka-topics --create --bootstrap-server kafka:9092 --topic hashtags --partitions 3 --replication-factor 1 --if-not-exists &&
+      /usr/bin/kafka-topics --create --bootstrap-server kafka:9092 --topic leaderboards --partitions 1 --replication-factor 1 --if-not-exists &&
+      echo 'Topics created successfully' &&
+      /usr/bin/kafka-topics --list --bootstrap-server kafka:9092
+      "
+    networks:
+      - tweetoscope
+
+  # KafkaTweetProducer - produit sur raw-tweets
+  tweetoscope-producer:
+    image: fthievon/tweetoscope-kafka:latest
+    container_name: tweetoscope-producer
+    depends_on:
+      topic-creator:
+        condition: service_completed_successfully
+    environment:
+      SERVICE_JAR: KafkaTweetProducer
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      TOPIC_OUTPUT: raw-tweets
+    networks:
+      - tweetoscope
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "KafkaTweetProducer"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # KafkaTweetFilter - consomme raw-tweets, produit filtered-tweets
+  tweetoscope-filter:
+    image: fthievon/tweetoscope-kafka:latest
+    container_name: tweetoscope-filter
+    depends_on:
+      tweetoscope-producer:
+        condition: service_healthy
+    environment:
+      SERVICE_JAR: KafkaTweetFilter
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      TOPIC_INPUT: raw-tweets
+      TOPIC_OUTPUT: filtered-tweets
+    networks:
+      - tweetoscope
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "KafkaTweetFilter"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # KafkaHashtagExtractor - consomme filtered-tweets, produit hashtags
+  tweetoscope-extractor:
+    image: fthievon/tweetoscope-kafka:latest
+    container_name: tweetoscope-extractor
+    depends_on:
+      tweetoscope-filter:
+        condition: service_healthy
+    environment:
+      SERVICE_JAR: KafkaHashtagExtractor
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      TOPIC_INPUT: filtered-tweets
+      TOPIC_OUTPUT: hashtags
+    networks:
+      - tweetoscope
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "KafkaHashtagExtractor"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # KafkaHashtagCounter - consomme hashtags, produit vers leaderboards
+  tweetoscope-counter:
+    image: fthievon/tweetoscope-kafka:latest
+    container_name: tweetoscope-counter
+    depends_on:
+      tweetoscope-extractor:
+        condition: service_healthy
+    environment:
+      SERVICE_JAR: KafkaHashtagCounter
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      TOPIC_INPUT: hashtags
+      TOPIC_OUTPUT: leaderboards
+    networks:
+      - tweetoscope
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "KafkaHashtagCounter"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # KafkaLeaderboard - consomme leaderboards, affichage/agrégation finale
+  tweetoscope-leaderboard:
+    image: fthievon/tweetoscope-kafka:latest
+    container_name: tweetoscope-leaderboard
+    depends_on:
+      tweetoscope-counter:
+        condition: service_healthy
+    environment:
+      SERVICE_JAR: KafkaLeaderboard
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      TOPIC_INPUT: leaderboards
+    ports:
+      - "8080:8080"
+    networks:
+      - tweetoscope
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "KafkaLeaderboard"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  tweetoscope:
+    driver: bridge
+
+volumes:
+  kafka_data:
+    driver: local

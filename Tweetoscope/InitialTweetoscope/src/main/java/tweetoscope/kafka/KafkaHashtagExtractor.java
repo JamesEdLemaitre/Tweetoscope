@@ -93,7 +93,11 @@ public class KafkaHashtagExtractor {
 
     private Properties configureKafkaProducer() {
         Properties producerProperties = new Properties();
-        producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        String bootstrapServers = System.getenv("KAFKA_BOOTSTRAP_SERVERS");
+        if (bootstrapServers == null || bootstrapServers.isEmpty()) {
+            bootstrapServers = "kafka:9092";
+        }
+        producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         producerProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.VoidSerializer");
         producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
@@ -103,7 +107,11 @@ public class KafkaHashtagExtractor {
 
     private Properties configureKafkaConsumer() {
         Properties consumerProperties = new Properties();
-        consumerProperties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        String bootstrapServers = System.getenv("KAFKA_BOOTSTRAP_SERVERS");
+        if (bootstrapServers == null || bootstrapServers.isEmpty()) {
+            bootstrapServers = "kafka:9092";
+        }
+        consumerProperties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         consumerProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.VoidDeserializer");
         consumerProperties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,

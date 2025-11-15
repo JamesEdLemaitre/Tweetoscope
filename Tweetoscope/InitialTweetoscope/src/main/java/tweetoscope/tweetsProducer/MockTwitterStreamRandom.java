@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>
  */
 package tweetoscope.tweetsProducer;
 
+import java.time.OffsetDateTime;
 import java.util.Random;
 import java.util.concurrent.Flow.Subscriber;
 
@@ -71,6 +72,7 @@ public final class MockTwitterStreamRandom extends OfflineTweetsProducer {
 			tweet.setId("" + nb);
 			tweet.setText(text);
 			tweet.setLang(languages[(int) (Math.random() * languages.length)]);
+			tweet.setCreatedAt(OffsetDateTime.now());
 			// publishes the Tweet
 			for (Subscriber<? super Tweet> s : subscribers) {
 				s.onNext(tweet);

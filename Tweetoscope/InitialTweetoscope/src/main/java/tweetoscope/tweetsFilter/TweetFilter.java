@@ -59,6 +59,17 @@ public abstract class TweetFilter implements Subscriber<Tweet>, Publisher<Tweet>
 	 */
 	protected abstract boolean match(Tweet tweet);
 
+	/**
+	 * Public method to check if a tweet matches the filter conditions.
+	 * Used for external filtering logic (e.g., Kafka implementations).
+	 * 
+	 * @param tweet Tweet to examine
+	 * @return true if the Tweet matches the filter conditions, false otherwise
+	 */
+	public boolean isMatching(Tweet tweet) {
+		return match(tweet);
+	}
+
 	@Override
 	public void subscribe(Subscriber<? super Tweet> subscriber) {
 		subscribers.add(subscriber);

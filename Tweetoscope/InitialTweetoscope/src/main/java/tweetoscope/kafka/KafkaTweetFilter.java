@@ -1,31 +1,29 @@
 package tweetoscope.kafka;
 
-import com.twitter.clientlib.model.Tweet;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-
+import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.Properties;
 
-import java.util.Collections;
-
-import java.time.Duration;
-
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
-
 import org.apache.kafka.clients.producer.ProducerRecord;
-import tweetoscope.tweetsFilter.RecentTweetFilter;
-import tweetoscope.tweetsFilter.TweetFilter;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import java.time.OffsetDateTime;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonSerializer;
-import java.time.format.DateTimeFormatter;
+import com.twitter.clientlib.model.Tweet;
+
+import tweetoscope.tweetsFilter.EmptyTweetFilter;
+import tweetoscope.tweetsFilter.LangTweetFilter;
+import tweetoscope.tweetsFilter.RecentTweetFilter;
+import tweetoscope.tweetsFilter.TweetFilter;
 
 public class KafkaTweetFilter {
 
@@ -96,29 +94,33 @@ public class KafkaTweetFilter {
                         // System.out.println("Test");
                         records = kafkaConsumer.poll(timeout);
                         for (ConsumerRecord<Void, String> record : records) {
-                            // PART 1: Consume raw tweets from raw-tweets
-                            String record_value = record.value();
-                            Tweet tweet = gson.fromJson(record_value, Tweet.class);
+                            try {
+                                // PART 1: Consume raw tweets from raw-tweets
+                                String record_value = record.value();
+                                if (record_value == null || record_value.isEmpty()) {
+                                    continue;
+                                }
 
+                                Tweet tweet = gson.fromJson(record_value, Tweet.class);
+                                
+                                if (tweet == null) {
+                                    System.err.println("Warning: Deserialized tweet is null, skipping...");
+                                    continue;
+                                }
 
-                            // PART 2: Make filter
+                                // PART 2: Apply filter
+                                boolean matches = ((TweetFilter) filter).isMatching(tweet);
 
-                            // Apply filter:
-                            boolean matches = false;
-                            if (filter instanceof RecentTweetFilter) {
-                                matches = ((RecentTweetFilter) filter).match(tweet);
-                            } else if (filter instanceof LangTweetFilter) {
-                                matches = ((LangTweetFilter) filter).match(tweet);
-                            } else if (filter instanceof EmptyTweetFilter) {
-                                matches = ((EmptyTweetFilter) filter).match(tweet);
+                                if (matches) {
+                                    // PART 3: If the tweet matches the filter, produce to filtered-tweets topic
+                                    String tweetJson = gson.toJson(tweet);
+                                    kafkaProducer.send(new ProducerRecord<>(OUTPUT_TOPIC_NAME, null, tweetJson));
+                                    System.out.println("Filtered tweet sent to partition with id: " + tweet.getId());
+                                }
+                            } catch (Exception recordException) {
+                                System.err.println("Error processing record: " + recordException.getMessage());
+                                recordException.printStackTrace();
                             }
-
-                            if (matches) {
-                                // PART 3: If the tweet matches the filter, produce to filtered-tweets topic:
-                                String tweetJson = gson.toJson(tweet);
-                                kafkaProducer.send(new ProducerRecord<Void, String>(OUTPUT_TOPIC_NAME, null, tweetJson));
-                            }
-
                         }
                     }
                 } catch (Exception e) {
@@ -132,19 +134,27 @@ public class KafkaTweetFilter {
 
     private Properties configureKafkaConsumer() {
         Properties consumerProperties = new Properties();
-        consumerProperties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        String bootstrapServers = System.getenv("KAFKA_BOOTSTRAP_SERVERS");
+        if (bootstrapServers == null || bootstrapServers.isEmpty()) {
+            bootstrapServers = "kafka:9092";
+        }
+        consumerProperties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         consumerProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.VoidDeserializer");
         consumerProperties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.StringDeserializer");
-        consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"); // from beginning
-        consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG, "myOwnPrivateJavaGroup");
+        consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG, "KafkaTweetFilter-Group");
         return consumerProperties;
     }
 
     private Properties configureKafkaProducer() {
         Properties producerProperties = new Properties();
-        producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        String bootstrapServers = System.getenv("KAFKA_BOOTSTRAP_SERVERS");
+        if (bootstrapServers == null || bootstrapServers.isEmpty()) {
+            bootstrapServers = "kafka:9092";
+        }
+        producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         producerProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.VoidSerializer");
         producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
@@ -152,44 +162,7 @@ public class KafkaTweetFilter {
         return producerProperties;
     }
 
-    static class RecentTweetFilter {
-        protected long maxAge;
 
-        public RecentTweetFilter(long maxAge) {
-            this.maxAge = maxAge;
-        }
-
-        protected boolean match(Tweet tweet) {
-            OffsetDateTime tweetDate = tweet.getCreatedAt();
-            OffsetDateTime now = OffsetDateTime.now();
-            long ageHours = Duration.between(tweetDate, now).toHours();
-
-            return ageHours <= this.maxAge;
-        }
-    }
-
-    static class LangTweetFilter {
-        protected String language;
-
-        public LangTweetFilter(String language) {
-            this.language = language;
-        }
-
-        protected boolean match(Tweet tweet) {
-            String tweetLang = tweet.getLang();
-
-            return tweetLang.equals(this.language);
-        }
-
-    }
-
-    static class EmptyTweetFilter {
-        protected boolean match(Tweet tweet) {
-            return !tweet.getText().trim().isEmpty();
-        }
-    }
-
-    // CountryCodeTweetFilter not done, uses Twitter api.
     // Same for UserAccountCreationDate.
 
 

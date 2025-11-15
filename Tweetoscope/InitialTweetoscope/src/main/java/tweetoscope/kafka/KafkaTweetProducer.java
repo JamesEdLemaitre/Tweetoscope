@@ -107,9 +107,16 @@ public class KafkaTweetProducer {
                                 new ProducerRecord<>(TOPIC_NAME, null, tweetJson);
 
                         kafkaProducer.send(record, (metadata, exception) -> {
+                            if (exception != null) {
+                                System.err.println("Error sending tweet: " + exception.getMessage());
+                                exception.printStackTrace();
+                            } else {
+                                System.out.println("Tweet sent to partition " + metadata.partition() + " with offset " + metadata.offset());
+                            }
                         });
 
                     } catch (Exception e) {
+                        System.err.println("Exception in onNext: " + e.getMessage());
                         e.printStackTrace();
                     }
                 }
@@ -142,7 +149,11 @@ public class KafkaTweetProducer {
 
     private Properties configureKafkaProducer() {
         Properties producerProperties = new Properties();
-        producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        String bootstrapServers = System.getenv("KAFKA_BOOTSTRAP_SERVERS");
+        if (bootstrapServers == null || bootstrapServers.isEmpty()) {
+            bootstrapServers = "kafka:9092"; // Default for Docker environment
+        }
+        producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         producerProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.VoidSerializer");
         producerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,

@@ -1,82 +1,64 @@
 package tweetoscope.kafka;
 
-import java.awt.Color;
-import java.awt.Dimension;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.stream.Stream;
-
-import javax.swing.BorderFactory;
-import javax.swing.JFrame;
-import javax.swing.SwingUtilities;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 
-import org.jfree.chart.ChartFactory;
-import org.jfree.chart.ChartPanel;
-import org.jfree.chart.JFreeChart;
-import org.jfree.chart.axis.AxisLocation;
-import org.jfree.chart.plot.PlotOrientation;
-import org.jfree.data.category.DefaultCategoryDataset;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-public class KafkaLeaderboard extends JFrame {
+/**
+ * Kafka consumer for leaderboard data - works in both GUI and headless modes
+ */
+public class KafkaLeaderboard {
 
-    private static final String INPUT_TOPIC_NAME = "leaderboard";
+    private static final String INPUT_TOPIC_NAME = "leaderboards";
     private static final int NB_LEADERS = 5;
 
-    // Dataset et constantes d'affichage
-    private final DefaultCategoryDataset dataset = new DefaultCategoryDataset();
-    private static final String ROW_KEY = "hashtag";
-
-    // Gson + type pour Map<String,Integer> (pleinement qualifié pour éviter les conflits d'import)
+    // Gson + type pour Map<String,Integer>
     private final Gson gson = new GsonBuilder().create();
     private final java.lang.reflect.Type mapType =
             new com.google.gson.reflect.TypeToken<Map<String, Integer>>() {}.getType();
 
+    // For GUI mode (optional)
+    private transient KafkaLeaderboardGUI guiFrame = null;
+    private transient KafkaLeaderboardWebServer webServer = null;
+
     public static void main(String[] args) {
-        // Lance l'UI sur l'EDT
-        SwingUtilities.invokeLater(() -> {
-            KafkaLeaderboard app = new KafkaLeaderboard(NB_LEADERS);
-            app.setVisible(true);
-            // Démarre le consumer Kafka en arrière-plan
-            app.startConsumerThread();
-        });
+        String headless = System.getProperty("java.awt.headless", "false");
+        KafkaLeaderboard app = new KafkaLeaderboard(NB_LEADERS, headless.equals("true"));
+        app.startConsumerThread();
     }
 
+    public KafkaLeaderboard(int nbLeaders, boolean headlessMode) {
+        // Always start web server (accessible from outside container)
+        try {
+            this.webServer = new KafkaLeaderboardWebServer();
+        } catch (Exception e) {
+            System.err.println("WebServer initialization failed: " + e.getMessage());
+        }
+        
+        // Optionally start GUI if not headless
+        if (!headlessMode) {
+            try {
+                this.guiFrame = new KafkaLeaderboardGUI("Tweetoscope Leaderboard");
+                this.guiFrame.setVisible(true);
+            } catch (Exception e) {
+                System.err.println("GUI initialization failed: " + e.getMessage());
+            }
+        }
+    }
+
+    // Legacy constructor for backward compatibility
     public KafkaLeaderboard(int nbLeaders) {
-        // Construction de la fenêtre et du graphe (inspiré de Visualizor)
-        JFreeChart chart = ChartFactory.createBarChart(
-                "Most Popular Hashtags",
-                "",                        // label axe catégories
-                "number of occurences",    // label axe valeurs
-                dataset,
-                PlotOrientation.HORIZONTAL,
-                false,                     // legend
-                true,                      // tooltips
-                false                      // urls
-        );
-        chart.getCategoryPlot().setRangeAxisLocation(AxisLocation.BOTTOM_OR_RIGHT);
-        chart.getCategoryPlot().setDomainAxisLocation(AxisLocation.BOTTOM_OR_RIGHT);
-
-        ChartPanel chartPanel = new ChartPanel(chart);
-        chartPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        chartPanel.setBackground(Color.white);
-        chartPanel.setPreferredSize(new Dimension(500, 300));
-
-        this.add(chartPanel);
-        this.pack();
-        this.setTitle("Tweetoscope");
-        this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        this(nbLeaders, false);
     }
 
     private void startConsumerThread() {
@@ -119,34 +101,44 @@ public class KafkaLeaderboard extends JFrame {
     }
 
     private void updateChart(Map<String, Integer> item) {
-        // Mise à jour sur l'EDT (Swing non thread-safe)
-        SwingUtilities.invokeLater(() -> {
-            dataset.clear();
-
-            // Trie décroissant par occurrences et limite au NB_LEADERS
-            Stream<Entry<String, Integer>> sortedTopHashtags = item.entrySet().stream()
-                    .sorted(Collections.reverseOrder(Map.Entry.comparingByValue()))
-                    .limit(NB_LEADERS);
-
-            sortedTopHashtags.forEach(t -> dataset.setValue(t.getValue(), ROW_KEY, t.getKey()));
-
-            // Padding si moins d'éléments que NB_LEADERS
-            int size = Math.min(item.size(), NB_LEADERS);
-            for (int i = size; i < NB_LEADERS; i++) {
-                dataset.setValue(0, ROW_KEY, "");
+        // Update web server
+        if (webServer != null) {
+            webServer.updateLeaderboard(item);
+        }
+        
+        // Update GUI if available
+        if (guiFrame != null) {
+            guiFrame.updateChart(item);
+        } else {
+            // Headless mode: afficher un leaderboard formaté
+            System.out.println("\n" + "=".repeat(60));
+            System.out.println("                   TOP HASHTAGS LEADERBOARD                  ");
+            System.out.println("=".repeat(60));
+            System.out.printf("%-5s %-20s %15s%n", "Rank", "Hashtag", "Count");
+            System.out.println("-".repeat(60));
+            
+            int rank = 1;
+            var leaders = new ArrayList<>(item.entrySet());
+            leaders.sort(Collections.reverseOrder(Map.Entry.comparingByValue()));
+            for (var entry : leaders.stream().limit(NB_LEADERS).collect(java.util.stream.Collectors.toList())) {
+                System.out.printf("%-5d %-20s %,15d%n", rank++, entry.getKey(), entry.getValue());
             }
-        });
+            System.out.println("=".repeat(60));
+        }
     }
 
     private Properties configureKafkaConsumer() {
         Properties consumerProperties = new Properties();
-        consumerProperties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        String bootstrapServers = System.getenv("KAFKA_BOOTSTRAP_SERVERS");
+        if (bootstrapServers == null || bootstrapServers.isEmpty()) {
+            bootstrapServers = "kafka:9092";
+        }
+        consumerProperties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         consumerProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.VoidDeserializer");
         consumerProperties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.StringDeserializer");
-        consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"); // from beginning
-        // Pour être sûr de relire depuis le début à chaque run, on peut donner un group.id unique
+        consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG, "visualizor-leaderboard-" + System.currentTimeMillis());
         return consumerProperties;
     }
