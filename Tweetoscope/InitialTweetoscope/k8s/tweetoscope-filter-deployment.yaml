@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tweetoscope-filter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tweetoscope-filter
+  template:
+    metadata:
+      labels:
+        app: tweetoscope-filter
+    spec:
+      containers:
+      - name: filter
+        image: fthievon/tweetoscope-kafka:latest
+        env:
+        - name: SERVICE_JAR
+          value: "KafkaTweetFilter"
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka:9092"
+        - name: TOPIC_INPUT
+          value: "raw-tweets"
+        - name: TOPIC_OUTPUT
+          value: "filtered-tweets"
+        - name: ARGS
+          value: "recent"

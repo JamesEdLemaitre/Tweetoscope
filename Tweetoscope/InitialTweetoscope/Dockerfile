@@ -29,4 +29,4 @@ ENV SERVICE_JAR=""
 ENV KAFKA_BOOTSTRAP_SERVERS="kafka:9092"
 
 # Point d'entrée : lance le JAR correspondant au SERVICE_JAR
-ENTRYPOINT ["sh", "-c", "java -Djava.awt.headless=true -jar /app/jars/${SERVICE_JAR}-jar-with-dependencies.jar"]
+ENTRYPOINT ["sh", "-c", "java -Djava.awt.headless=true -jar /app/jars/${SERVICE_JAR}-jar-with-dependencies.jar ${ARGS:-}"]

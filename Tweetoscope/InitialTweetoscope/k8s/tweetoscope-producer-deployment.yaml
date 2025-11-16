@@ -1,0 +1,27 @@
+#Déploiements des microservices
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tweetoscope-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tweetoscope-producer
+  template:
+    metadata:
+      labels:
+        app: tweetoscope-producer
+    spec:
+      containers:
+      - name: producer
+        image: fthievon/tweetoscope-kafka:latest
+        env:
+        - name: SERVICE_JAR
+          value: "KafkaTweetProducer"
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka:9092"
+        - name: TOPIC_OUTPUT
+          value: "raw-tweets"
+        - name: ARGS
+          value: "random"

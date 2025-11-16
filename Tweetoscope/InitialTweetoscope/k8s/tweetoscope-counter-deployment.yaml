@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tweetoscope-counter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tweetoscope-counter
+  template:
+    metadata:
+      labels:
+        app: tweetoscope-counter
+    spec:
+      containers:
+      - name: counter
+        image: fthievon/tweetoscope-kafka:latest
+        env:
+        - name: SERVICE_JAR
+          value: "KafkaHashtagCounter"
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka:9092"
+        - name: TOPIC_INPUT
+          value: "hashtags"
+        - name: TOPIC_OUTPUT
+          value: "leaderboards"

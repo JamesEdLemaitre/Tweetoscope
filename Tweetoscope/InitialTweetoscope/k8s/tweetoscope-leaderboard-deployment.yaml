@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tweetoscope-leaderboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tweetoscope-leaderboard
+  template:
+    metadata:
+      labels:
+        app: tweetoscope-leaderboard
+    spec:
+      containers:
+      - name: leaderboard
+        image: fthievon/tweetoscope-kafka:latest
+        env:
+        - name: SERVICE_JAR
+          value: "KafkaLeaderboard"
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka:9092"
+        - name: TOPIC_INPUT
+          value: "leaderboards"
+        ports:
+        - containerPort: 8080
+

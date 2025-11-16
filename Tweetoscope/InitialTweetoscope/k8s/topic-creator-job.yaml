@@ -1,0 +1,26 @@
+#création des topics
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: topic-creator
+spec:
+  backoffLimit: 4
+  template:
+    spec:
+      containers:
+      - name: topic-creator
+        image: apache/kafka:latest
+        command: ["/bin/sh"]
+        args:
+          - -c
+          - |
+            echo "Waiting for Kafka to be ready..."
+            sleep 10
+            echo "Creating topics..."
+            /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic raw-tweets --partitions 1 --replication-factor 1
+            /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic filtered-tweets --partitions 1 --replication-factor 1
+            /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic hashtags --partitions 1 --replication-factor 1
+            /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic leaderboards --partitions 1 --replication-factor 1
+            echo "Topics created successfully!"
+            /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
+      restartPolicy: Never
