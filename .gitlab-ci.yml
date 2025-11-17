@@ -1,5 +1,6 @@
 stages:
   - test
+  - quality
   - publish
 
 # Job pour exécuter les tests JUnit
@@ -34,6 +35,24 @@ pages:
   artifacts:
     paths:
       - public
+  only:
+    - main
+    - master
+
+# Job pour analyser la qualité du code avec SonarQube
+sonarqube:
+  stage: quality
+  image: maven:3.9-eclipse-temurin-11
+  tags:
+    - docker
+  script:
+    - cd Tweetoscope/InitialTweetoscope
+    - mvn clean verify sonar:sonar
+      -Dsonar.projectKey=tweetoscope
+      -Dsonar.sources=src/main/java
+      -Dsonar.host.url=${SONAR_HOST_URL}
+      -Dsonar.login=${SONAR_LOGIN}
+  allow_failure: true
   only:
     - main
     - master
