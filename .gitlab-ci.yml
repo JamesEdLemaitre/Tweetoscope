@@ -11,11 +11,14 @@ test-filter:
     - docker
   script:
     - cd Tweetoscope/InitialTweetoscope
-    - mvn clean test -Dtest=KafkaTweetFilterTest
+    - mvn clean test -Dtest=KafkaTweetFilterTest -X
   artifacts:
     when: always
     reports:
-      junit: Tweetoscope/InitialTweetoscope/target/surefire-reports/TEST-*.xml
+      junit: 
+        - Tweetoscope/InitialTweetoscope/target/surefire-reports/TEST-*.xml
+    paths:
+      - Tweetoscope/InitialTweetoscope/target/surefire-reports/
   only:
     - main
     - master
