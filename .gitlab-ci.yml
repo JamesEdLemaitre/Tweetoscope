@@ -1,19 +1,11 @@
 stages:
-  - build
   - publish
 
-# Job pour compiler le CR.tex en PDF et publier sur GitLab Pages
 pages:
   stage: publish
-  before_script:
-    - sudo apt-get update -qq
-    - sudo apt-get install -y texlive-latex-full texlive-fonts-recommended texlive-fonts-extra texlive-lang-french
   script:
-    # Créer le répertoire public pour GitLab Pages
     - mkdir -p public
-    # Compiler le fichier LaTeX en PDF
     - pdflatex -interaction=nonstopmode -output-directory=public CR.tex
-    # Compiler une deuxième fois pour les références croisées
     - pdflatex -interaction=nonstopmode -output-directory=public CR.tex
   artifacts:
     paths:
