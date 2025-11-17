@@ -5,12 +5,13 @@ stages:
 # Job pour builder et publier l'image Docker au GitLab Container Registry
 build-docker:
   stage: build
-  image: gcr.io/kaniko-project/executor:latest
-  variables:
-    IMAGE_TAG: $CI_COMMIT_SHA
   script:
-    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(printf $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --context $CI_PROJECT_DIR/Tweetoscope/InitialTweetoscope --dockerfile Dockerfile --destination $CI_REGISTRY_IMAGE:$IMAGE_TAG --destination $CI_REGISTRY_IMAGE:latest
+    - cd Tweetoscope/InitialTweetoscope
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
+    - docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+    - docker push $CI_REGISTRY_IMAGE:latest
   only:
     - main
     - master
