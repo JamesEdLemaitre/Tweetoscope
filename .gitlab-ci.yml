@@ -5,11 +5,14 @@ stages:
 # Job pour builder et publier l'image Docker au GitLab Container Registry
 build-docker:
   stage: build
-  image: maven:3.9-eclipse-temurin-11
+  image: docker:latest
+  services:
+    - docker:dind
   variables:
     IMAGE_TAG: $CI_COMMIT_SHA
+    DOCKER_HOST: unix:///var/run/docker.sock
+    DOCKER_DRIVER: overlay2
   before_script:
-    - apt-get update && apt-get install -y docker.io
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     - cd Tweetoscope/InitialTweetoscope
