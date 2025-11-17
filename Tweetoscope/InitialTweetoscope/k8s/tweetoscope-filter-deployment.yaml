@@ -12,6 +12,8 @@ spec:
       labels:
         app: tweetoscope-filter
     spec:
+      imagePullSecrets:
+      - name: gitlab-registry
       containers:
       - name: filter
         image: registry.gitlab.centralesupelec.fr/louca.malerba/tweetoscope25_group-10_lemaitre_thievon_malerba:latest

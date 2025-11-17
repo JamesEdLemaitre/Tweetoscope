@@ -58,7 +58,7 @@ services:
 
   # KafkaTweetProducer - produit sur raw-tweets
   tweetoscope-producer:
-    image: ${DOCKER_IMAGE:-registry.gitlab.centralesupelec.fr/louca.malerba/tweetoscope25_group-10_lemaitre_thievon_malerba:latest}
+    image: fthievon/tweetoscope-kafka:latest
     container_name: tweetoscope-producer
     depends_on:
       topic-creator:
@@ -78,7 +78,7 @@ services:
 
   # KafkaTweetFilter - consomme raw-tweets, produit filtered-tweets
   tweetoscope-filter:
-    image: ${DOCKER_IMAGE:-registry.gitlab.centralesupelec.fr/louca.malerba/tweetoscope25_group-10_lemaitre_thievon_malerba:latest}
+    image: fthievon/tweetoscope-kafka:latest
     container_name: tweetoscope-filter
     depends_on:
       tweetoscope-producer:
@@ -99,7 +99,7 @@ services:
 
   # KafkaHashtagExtractor - consomme filtered-tweets, produit hashtags
   tweetoscope-extractor:
-    image: ${DOCKER_IMAGE:-registry.gitlab.centralesupelec.fr/louca.malerba/tweetoscope25_group-10_lemaitre_thievon_malerba:latest}
+    image: fthievon/tweetoscope-kafka:latest
     container_name: tweetoscope-extractor
     depends_on:
       tweetoscope-filter:
@@ -120,7 +120,7 @@ services:
 
   # KafkaHashtagCounter - consomme hashtags, produit vers leaderboards
   tweetoscope-counter:
-    image: ${DOCKER_IMAGE:-registry.gitlab.centralesupelec.fr/louca.malerba/tweetoscope25_group-10_lemaitre_thievon_malerba:latest}
+    image: fthievon/tweetoscope-kafka:latest
     container_name: tweetoscope-counter
     depends_on:
       tweetoscope-extractor:
@@ -141,7 +141,7 @@ services:
 
   # KafkaLeaderboard - consomme leaderboards, affichage/agrégation finale
   tweetoscope-leaderboard:
-    image: ${DOCKER_IMAGE:-registry.gitlab.centralesupelec.fr/louca.malerba/tweetoscope25_group-10_lemaitre_thievon_malerba:latest}
+    image: fthievon/tweetoscope-kafka:latest
     container_name: tweetoscope-leaderboard
     depends_on:
       tweetoscope-counter:
