@@ -39,8 +39,8 @@ pages:
     - main
     - master
 
-# Job pour analyser la qualité du code avec SonarQube
-sonarqube:
+# Job pour analyser la qualité du code avec SonarCloud
+sonarcloud:
   stage: quality
   image: maven:3.9-eclipse-temurin-11
   tags:
@@ -48,10 +48,11 @@ sonarqube:
   script:
     - cd Tweetoscope/InitialTweetoscope
     - mvn clean verify sonar:sonar
-      -Dsonar.projectKey=tweetoscope
+      -Dsonar.projectKey=${SONAR_PROJECT_KEY}
+      -Dsonar.organization=${SONAR_ORGANIZATION}
       -Dsonar.sources=src/main/java
-      -Dsonar.host.url=${SONAR_HOST_URL}
-      -Dsonar.login=${SONAR_LOGIN}
+      -Dsonar.host.url=https://sonarcloud.io
+      -Dsonar.login=${SONAR_TOKEN}
   allow_failure: true
   only:
     - main
