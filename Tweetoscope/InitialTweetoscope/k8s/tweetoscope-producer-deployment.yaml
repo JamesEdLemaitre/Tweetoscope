@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: producer
-        image: fthievon/tweetoscope-kafka:latest
+        image: registry.gitlab.centralesupelec.fr/louca.malerba/tweetoscope25_group-10_lemaitre_thievon_malerba:latest
         env:
         - name: SERVICE_JAR
           value: "KafkaTweetProducer"
