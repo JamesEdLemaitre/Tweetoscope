@@ -29,6 +29,7 @@ build-docker:
   image: gcr.io/kaniko-project/executor:latest
   variables:
     IMAGE_TAG: $CI_COMMIT_SHA
+  entrypoint: [""]
   script:
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
