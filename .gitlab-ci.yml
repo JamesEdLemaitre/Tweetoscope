@@ -3,6 +3,7 @@ stages:
 
 pages:
   stage: publish
+  image: texlive/texlive:latest
   script:
     - mkdir -p public
     - pdflatex -interaction=nonstopmode -output-directory=public CR.tex
