@@ -28,15 +28,25 @@ build-docker:
   stage: build
   image: docker:latest
   services:
-    - docker:dind
+    - name: docker:dind
+      command: ["--storage-driver=overlay2"]
   variables:
     IMAGE_TAG: $CI_COMMIT_SHA
-    DOCKER_HOST: unix:///var/run/docker.sock
+    DOCKER_HOST: tcp://docker:2375
     DOCKER_DRIVER: overlay2
-    DOCKER_TLS_CERTDIR: "/certs"
-    DOCKER_TLS_VERIFY: 1
+    DOCKER_TLS_CERTDIR: ""
   before_script:
-    - sleep 15
+    - sleep 30
+    - apk add --no-cache curl
+    - |
+      for i in $(seq 1 60); do
+        if docker info > /dev/null 2>&1; then
+          echo "Docker daemon is ready"
+          break
+        fi
+        echo "Waiting for Docker daemon... ($i/60)"
+        sleep 1
+      done
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     - cd Tweetoscope/InitialTweetoscope
@@ -46,7 +56,9 @@ build-docker:
     - docker push $CI_REGISTRY_IMAGE:latest
   retry:
     max: 2
-    when: runner_system_failure
+    when: 
+      - runner_system_failure
+      - stuck_or_timeout_failure
   only:
     - main
     - master
