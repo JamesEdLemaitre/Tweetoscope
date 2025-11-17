@@ -23,21 +23,21 @@ test-filter:
     - main
     - master
 
-# Job pour builder et publier l'image Docker au GitLab Container Registry avec Kaniko
+# Job pour builder et publier l'image Docker au GitLab Container Registry
 build-docker:
   stage: build
-  image: gcr.io/kaniko-project/executor:latest
+  image: alpine:latest
   variables:
     IMAGE_TAG: $CI_COMMIT_SHA
   before_script:
-    - mkdir -p /kaniko/.docker
-    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
+    - apk add --no-cache docker-cli curl
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
-    - /kaniko/executor 
-        --context $CI_PROJECT_DIR/Tweetoscope/InitialTweetoscope 
-        --dockerfile $CI_PROJECT_DIR/Tweetoscope/InitialTweetoscope/Dockerfile
-        --destination $CI_REGISTRY_IMAGE:$IMAGE_TAG 
-        --destination $CI_REGISTRY_IMAGE:latest
+    - cd Tweetoscope/InitialTweetoscope
+    - docker build -t $CI_REGISTRY_IMAGE:$IMAGE_TAG .
+    - docker tag $CI_REGISTRY_IMAGE:$IMAGE_TAG $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:$IMAGE_TAG
+    - docker push $CI_REGISTRY_IMAGE:latest
   only:
     - main
     - master
