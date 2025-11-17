@@ -353,7 +353,7 @@ Détectabilité: Immédiate
 
 $\rightarrow$ Tous les composants génèrent des erreurs de connexion et l'application s'arrête complètement. La détection est donc immédiate.
 
-\section{Architecture Docker}
+\section{Task 11 : Conteneurisation Docker}
 
 \subsection{Principes de la Conteneurisation}
 
@@ -361,7 +361,21 @@ Docker permet d'empaqueter l'application avec toutes ses dépendances (JRE, libr
 
 Notre projet utilise une image Docker unique \texttt{fthievon/tweetoscope-kafka:latest} pour tous les microservices (Producer, Filter, Extractor, Counter, Leaderboard). Cette approche est possible car tous les services partagent le même code de base et seul le JAR exécuté change selon le service déployé.
 
-\subsection{Fichier Dockerfile}
+\subsubsection{Travaux Effectués}
+
+\begin{itemize}
+    \item \textbf{Création du Dockerfile} : Implémentation d'une stratégie multi-stage avec deux étapes distinctes
+    \begin{itemize}
+        \item Stage 1 (build) : Compilation du projet Maven avec \texttt{maven:3.9-eclipse-temurin-11}
+        \item Stage 2 (runtime) : Image légère \texttt{eclipse-temurin:11-jre-alpine} contenant uniquement la JRE
+    \end{itemize}
+    \item \textbf{Configuration des variables d'environnement} : Mise en place du système pour passer \texttt{SERVICE\_JAR}, \texttt{KAFKA\_BOOTSTRAP\_SERVERS} et \texttt{ARGS}
+    \item \textbf{Build et Push sur DockerHub} : Construction locale et publication de l'image sur le registre public
+    \item \textbf{Exposition du port 8080} : Configuration pour le leaderboard web server
+    \item \textbf{Optimisation de la taille} : Réduction significative par l'utilisation d'une image alpine pour le runtime
+\end{itemize}
+
+\subsection{Fichier Dockerfile et Architecture Multi-Stage}
 
 Le Dockerfile suit une approche multi-stage pour réduire la taille de l'image finale :
 
@@ -378,13 +392,17 @@ Le conteneur expose le port 8080 (utilisé par le leaderboard web server) et acc
     \item \texttt{ARGS} : Arguments supplémentaires passés au service
 \end{itemize}
 
-\subsection{Construction et Déploiement Local}
+\subsection{Utilisation et Déploiement}
+
+\subsubsection{Construction locale}
 
 Pour construire l'image Docker localement :
 
 \begin{verbatim}
 docker build -t tweetoscope-kafka .
 \end{verbatim}
+
+\subsubsection{Exécution d'un service}
 
 Pour lancer un service spécifique en local :
 
@@ -393,6 +411,8 @@ docker run -e SERVICE_JAR=KafkaTweetFilter \
   -e KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
   tweetoscope-kafka
 \end{verbatim}
+
+\subsubsection{Publication sur le registre}
 
 Pour déployer en production sur le registre DockerHub :
 
@@ -410,13 +430,24 @@ $\rightarrow$ \textbf{Scalabilité} : On peut rapidement créer plusieurs instan
 
 $\rightarrow$ \textbf{Reproductibilité} : Les mêmes versions des dépendances sont utilisées partout
 
-\section{Architecture Kubernetes}
+\section{Task 12 : Orchestration Kubernetes}
 
 \subsection{Introduction à Kubernetes}
 
 Kubernetes (K8s) est un orchestrateur de conteneurs qui automatise le déploiement, la mise à l'échelle et la gestion des applications conteneurisées. Contrairement à Docker Compose qui fonctionne sur une seule machine, Kubernetes gère des clusters avec plusieurs nœuds physiques et distribue les conteneurs de manière optimale.
 
 Dans notre projet, nous utilisons Kubernetes pour orchestrer les 5 microservices de Tweetoscope et Apache Kafka sur un cluster, assurant ainsi une disponibilité élevée et une résilience aux défaillances.
+
+\subsubsection{Travaux Effectués}
+
+\begin{itemize}
+    \item \textbf{Configuration du cluster Kubernetes} : Mise en place d'un cluster Kind (Kubernetes in Docker) pour développement et tests locaux
+    \item \textbf{Création de 5 fichiers de déploiement YAML} : Un pour chaque microservice (Producer, Filter, Extractor, Counter, Leaderboard)
+    \item \textbf{Configuration des services réseau} : Exposition du leaderboard web server sur le port 8080
+    \item \textbf{Gestion des variables d'environnement} : Passage des configurations Kafka aux conteneurs via deployments YAML
+    \item \textbf{Intégration des images Docker} : Utilisation de \texttt{fthievon/tweetoscope-kafka:latest} depuis DockerHub (images publiques)
+    \item \textbf{Suppression de imagePullSecrets} : Simplification en utilisant des images publiques (pas d'authentification nécessaire)
+\end{itemize}
 
 \subsection{Structure du Cluster et des Deployments}
 
@@ -509,6 +540,180 @@ $\rightarrow$ La configuration réseau et les troubleshooting peuvent être comp
 $\rightarrow$ Pour un petit projet, Docker Compose peut être suffisant et plus simple à mettre en place
 
 $\rightarrow$ Dans notre cas, nous avons utilisé Kind (Kubernetes in Docker) pour développer et tester localement avant le déploiement en production
+
+\section{Task 13 : Pipeline CI/CD avec Compilation PDF}
+
+\subsection{Objectif}
+
+Automatiser la compilation du rapport LaTeX (CR.tex) en PDF et sa publication automatique via GitLab Pages à chaque push dans le repository. Cette automatisation garantit que la documentation est toujours à jour et accessible publiquement.
+
+\subsection{Architecture de la Pipeline CI/CD}
+
+Nous avons créé un fichier \texttt{.gitlab-ci.yml} contenant une pipeline GitLab CI/CD avec deux stages principaux :
+
+\begin{enumerate}
+    \item \textbf{Stage test} : Exécution des tests JUnit (voir Task 14)
+    \item \textbf{Stage publish} : Compilation du PDF et publication sur GitLab Pages
+\end{enumerate}
+
+\subsection{Job de Compilation PDF}
+
+\subsubsection{Configuration}
+
+Le job \texttt{pages} effectue les opérations suivantes :
+
+\begin{itemize}
+    \item \textbf{Image Docker utilisée} : \texttt{texlive/texlive:latest} contenant tous les outils LaTeX nécessaires
+    \item \textbf{Compilation} : Exécution de \texttt{pdflatex} deux fois pour assurer la génération correcte des références croisées
+    \item \textbf{Artefacts} : Génération du PDF dans le répertoire \texttt{public/} pour publication automatique
+    \item \textbf{Dépendances} : Utilisation du fichier \texttt{CR.tex} comme source
+\end{itemize}
+
+\subsubsection{Commandes d'exécution}
+
+\begin{verbatim}
+pdflatex -interaction=nonstopmode CR.tex
+pdflatex -interaction=nonstopmode CR.tex
+mv CR.pdf public/
+\end{verbatim}
+
+Le flag \texttt{-interaction=nonstopmode} permet à pdflatex de continuer même en cas d'avertissements non critiques.
+
+\subsection{Publication sur GitLab Pages}
+
+\subsubsection{Automatisation}
+
+Chaque commit dans la branche \texttt{main} déclenche automatiquement :
+
+\begin{itemize}
+    \item La compilation du LaTeX en PDF
+    \item La création du répertoire \texttt{public/} avec le PDF
+    \item La publication du contenu sur GitLab Pages à l'adresse : \texttt{https://thiev.pages.centralesupelec.fr/tweetoscope25...}
+\end{itemize}
+
+\subsubsection{Avantages}
+
+$\rightarrow$ \textbf{Automatisation} : Plus besoin de compiler manuellement et uploader le PDF
+
+$\rightarrow$ \textbf{Documentation à jour} : Le PDF publié correspond toujours à la version du code
+
+$\rightarrow$ \textbf{Accessibilité} : Le rapport est accessible publiquement à une URL stable
+
+$\rightarrow$ \textbf{Traçabilité} : Historique des compilations disponible dans les logs CI/CD
+
+\subsection{Travaux Effectués}
+
+\begin{itemize}
+    \item \textbf{Création du fichier .gitlab-ci.yml} : Configuration initiale de la pipeline avec compilation LaTeX et publication
+    \item \textbf{Résolution des problèmes de compilation} : Tests et ajustements des images Docker (passage de Alpine à Ubuntu à texlive/texlive)
+    \item \textbf{Configuration de l'artifact public/} : Mise en place de la structure pour publication GitLab Pages
+    \item \textbf{Tests d'exécution} : Validation que la compilation fonctionne correctement en environnement CI
+    \item \textbf{Ajout du README.md} : Documentation du projet avec lien vers le PDF généré
+\end{itemize}
+
+\section{Task 14 : Tests JUnit pour KafkaTweetFilter}
+
+\subsection{Objectif}
+
+Implémenter une suite de tests unitaires complète pour valider le fonctionnement du fichier \texttt{KafkaTweetFilter.java}, assurant que tous les filtres (empty, language, recent) fonctionnent correctement et que le composant gère les cas limites.
+
+\subsection{Structure des Tests}
+
+La classe de test \texttt{KafkaTweetFilterTest.java} contient 7 tests couvrant les scénarios principaux :
+
+\subsubsection{Test 1: testEmptyTweetFilterAcceptsAllTweets}
+
+Valide que le filtre "empty" accepte tous les tweets reçus sans en rejeter aucun. C'est un filtre pass-through qui ne modifie pas les données.
+
+\subsubsection{Test 2: testLangTweetFilterAcceptsEnglish}
+
+Vérifie que le filtre "language" accepte les tweets dont le champ \texttt{lang} est défini à \texttt{"en"} (anglais).
+
+\subsubsection{Test 3: testLangTweetFilterRejectsFrench}
+
+Valide que le filtre "language" rejette les tweets en français (\texttt{lang = "fr"}).
+
+\subsubsection{Test 4: testRecentTweetFilterAcceptsRecentTweets}
+
+Teste que le filtre "recent" accepte les tweets créés depuis moins de 24 heures (en comparant le timestamp avec l'heure actuelle).
+
+\subsubsection{Test 5: testRecentTweetFilterRejectsOldTweets}
+
+Valide que le filtre "recent" rejette les tweets créés depuis plus de 24 heures.
+
+\subsubsection{Test 6: testGsonSerializationDeserialization}
+
+Vérifie que la sérialisation/désérialisation JSON avec Gson fonctionne correctement pour les tweets (l'objet Tweet peut être converti en JSON et reconverti sans perte de données).
+
+\subsubsection{Test 7: testNullTweetHandling}
+
+Teste le traitement des cas limites : que se passe-t-il quand on essaie de déserialiser une chaîne JSON vide ou invalide. Le test vérifie que le résultat est \texttt{null}.
+
+\subsection{Dépendances et Configuration Maven}
+
+Ajout des dépendances JUnit 5 au fichier \texttt{pom.xml} :
+
+\begin{verbatim}
+<dependency>
+    <groupId>org.junit.jupiter</groupId>
+    <artifactId>junit-jupiter-api</artifactId>
+    <version>5.9.3</version>
+    <scope>test</scope>
+</dependency>
+
+<dependency>
+    <groupId>org.junit.jupiter</groupId>
+    <artifactId>junit-jupiter-engine</artifactId>
+    <version>5.9.3</version>
+    <scope>test</scope>
+</dependency>
+\end{verbatim}
+
+Ajout du plugin Maven Surefire pour exécuter les tests :
+
+\begin{verbatim}
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-surefire-plugin</artifactId>
+    <version>3.2.5</version>
+</plugin>
+\end{verbatim}
+
+\subsection{Intégration dans la Pipeline CI/CD}
+
+Le job \texttt{test-filter} exécute les tests à chaque push :
+
+\begin{verbatim}
+mvn clean test -Dtest=KafkaTweetFilterTest -X
+\end{verbatim}
+
+\begin{itemize}
+    \item \texttt{clean} : Supprime les artefacts précédents
+    \item \texttt{test} : Exécute tous les tests
+    \item \texttt{-Dtest=KafkaTweetFilterTest} : Cible spécifiquement la classe de test
+    \item \texttt{-X} : Mode verbose pour les logs détaillés
+\end{itemize}
+
+\subsection{Résultats et Validations}
+
+\begin{itemize}
+    \item \textbf{7 tests implémentés} : Couverture complète des filtres (empty, language, recent)
+    \item \textbf{Tests JUnit 5} : Utilisation du framework JUnit 5 moderne avec annotations \texttt{@Test}, \texttt{@BeforeEach}, etc.
+    \item \textbf{Tous les tests passent} : Validation confirme le fonctionnement correct de KafkaTweetFilter
+    \item \textbf{Rapports d'exécution} : Artefacts de test générés dans \texttt{target/surefire-reports/}
+    \item \textbf{Correction de test} : Le test \texttt{testNullTweetHandling} a été ajusté pour assigner le résultat à \texttt{null} au lieu d'attendre une exception
+\end{itemize}
+
+\subsection{Travaux Effectués}
+
+\begin{itemize}
+    \item \textbf{Création de KafkaTweetFilterTest.java} : Implémentation de la suite de tests complète
+    \item \textbf{Ajout des dépendances JUnit 5} : Configuration de pom.xml avec les dépendances appropriées
+    \item \textbf{Configuration du plugin Surefire} : Mise en place de l'exécution automatique des tests Maven
+    \item \textbf{Intégration dans la pipeline} : Ajout du job \texttt{test-filter} dans .gitlab-ci.yml
+    \item \textbf{Débogage et correction} : Résolution des problèmes de dépendances manquantes et ajustement de la logique de test
+    \item \textbf{Validation end-to-end} : Vérification que les tests passent dans l'environnement CI GitLab
+\end{itemize}
 
  
 \end{document}
