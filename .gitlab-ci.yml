@@ -1,6 +1,22 @@
 stages:
+  - test
   - build
   - publish
+
+# Job pour exécuter les tests JUnit
+test-filter:
+  stage: test
+  image: maven:3.9-eclipse-temurin-11
+  script:
+    - cd Tweetoscope/InitialTweetoscope
+    - mvn clean test -Dtest=KafkaTweetFilterTest
+  artifacts:
+    when: always
+    reports:
+      junit: Tweetoscope/InitialTweetoscope/target/surefire-reports/TEST-*.xml
+  only:
+    - main
+    - master
 
 # Job pour builder et publier l'image Docker au GitLab Container Registry
 build-docker:
