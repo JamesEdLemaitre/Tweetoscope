@@ -1,6 +1,5 @@
 stages:
   - test
-  - build
   - publish
 
 # Job pour exécuter les tests JUnit
@@ -19,31 +18,6 @@ test-filter:
         - Tweetoscope/InitialTweetoscope/target/surefire-reports/TEST-*.xml
     paths:
       - Tweetoscope/InitialTweetoscope/target/surefire-reports/
-  only:
-    - main
-    - master
-
-# Job pour builder et publier l'image Docker au GitLab Container Registry
-build-docker:
-  stage: build
-  image: docker:27
-  services:
-    - docker:27-dind
-  tags:
-    - docker
-  variables:
-    IMAGE_TAG: $CI_COMMIT_SHA
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
-  before_script:
-    - sleep 15
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-  script:
-    - cd Tweetoscope/InitialTweetoscope
-    - docker build -t $CI_REGISTRY_IMAGE:$IMAGE_TAG .
-    - docker tag $CI_REGISTRY_IMAGE:$IMAGE_TAG $CI_REGISTRY_IMAGE:latest
-    - docker push $CI_REGISTRY_IMAGE:$IMAGE_TAG
-    - docker push $CI_REGISTRY_IMAGE:latest
   only:
     - main
     - master
