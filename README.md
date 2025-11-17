@@ -42,9 +42,7 @@ Vous pouvez filtrer les tweets selon :
 
 ## 📚 Documentation
 
-Le rapport complet du projet est disponible ici : **[CR.pdf](https://yourusername.gitlab.io/tweetoscope25_group-10_lemaitre_thievon_malerba/CR.pdf)**
-
-> **Note** : Remplacez `yourusername` par votre nom d'utilisateur GitLab ou le chemin du projet.
+Le rapport complet du projet est disponible ici : **[CR.pdf](https://tweetoscope25-group-10-lemaitre-thievon-malerba-c3b18e.pages-student.centralesupelec.fr/CR.pdf)**
 
 ## 👥 Auteurs
 
