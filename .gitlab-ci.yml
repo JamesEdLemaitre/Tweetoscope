@@ -5,14 +5,16 @@ stages:
 # Job pour builder et publier l'image Docker au GitLab Container Registry
 build-docker:
   stage: build
-  image: docker:27-git
+  image: docker:latest
   services:
-    - docker:27-dind
+    - docker:dind
   variables:
     DOCKER_HOST: unix:///var/run/docker.sock
+    DOCKER_TLS_CERTDIR: ""
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     - cd Tweetoscope/InitialTweetoscope
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
     - docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE:latest
     - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
