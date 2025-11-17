@@ -1,0 +1,24 @@
+stages:
+  - build
+  - publish
+
+# Job pour compiler le CR.tex en PDF et publier sur GitLab Pages
+pages:
+  stage: publish
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache texlive-full
+  script:
+    # Créer le répertoire public pour GitLab Pages
+    - mkdir -p public
+    # Compiler le fichier LaTeX en PDF
+    - cd /builds/$CI_PROJECT_PATH
+    - pdflatex -interaction=nonstopmode -output-directory=public CR.tex
+    # Compiler une deuxième fois pour les références croisées
+    - pdflatex -interaction=nonstopmode -output-directory=public CR.tex
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
+    - master
