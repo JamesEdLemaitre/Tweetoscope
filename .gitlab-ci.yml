@@ -26,13 +26,15 @@ test-filter:
 # Job pour builder et publier l'image Docker au GitLab Container Registry
 build-docker:
   stage: build
-  image: docker:latest
+  image: docker:27-dind
   tags:
     - docker
   variables:
     IMAGE_TAG: $CI_COMMIT_SHA
-    DOCKER_HOST: unix:///var/run/docker.sock
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: "/certs"
   before_script:
+    - sleep 5
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     - cd Tweetoscope/InitialTweetoscope
