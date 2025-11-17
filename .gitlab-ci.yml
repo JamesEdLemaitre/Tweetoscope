@@ -27,16 +27,11 @@ test-filter:
 build-docker:
   stage: build
   image: docker:latest
-  services:
-    - docker:dind
   tags:
     - docker
   variables:
     IMAGE_TAG: $CI_COMMIT_SHA
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
   before_script:
-    - sleep 10
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     - cd Tweetoscope/InitialTweetoscope
@@ -44,11 +39,6 @@ build-docker:
     - docker tag $CI_REGISTRY_IMAGE:$IMAGE_TAG $CI_REGISTRY_IMAGE:latest
     - docker push $CI_REGISTRY_IMAGE:$IMAGE_TAG
     - docker push $CI_REGISTRY_IMAGE:latest
-  retry:
-    max: 2
-    when:
-      - runner_system_failure
-      - api_failure
   only:
     - main
     - master
