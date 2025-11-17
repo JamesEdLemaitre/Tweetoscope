@@ -5,18 +5,18 @@ stages:
 # Job pour builder et publier l'image Docker au GitLab Container Registry
 build-docker:
   stage: build
-  image: quay.io/buildah/stable
+  image: maven:3.9-eclipse-temurin-11
   variables:
     IMAGE_TAG: $CI_COMMIT_SHA
-  tags:
-    - docker
+  before_script:
+    - apt-get update && apt-get install -y docker.io
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     - cd Tweetoscope/InitialTweetoscope
-    - buildah login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - buildah bud -t $CI_REGISTRY_IMAGE:$IMAGE_TAG .
-    - buildah tag $CI_REGISTRY_IMAGE:$IMAGE_TAG $CI_REGISTRY_IMAGE:latest
-    - buildah push $CI_REGISTRY_IMAGE:$IMAGE_TAG
-    - buildah push $CI_REGISTRY_IMAGE:latest
+    - docker build -t $CI_REGISTRY_IMAGE:$IMAGE_TAG .
+    - docker tag $CI_REGISTRY_IMAGE:$IMAGE_TAG $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:$IMAGE_TAG
+    - docker push $CI_REGISTRY_IMAGE:latest
   only:
     - main
     - master
