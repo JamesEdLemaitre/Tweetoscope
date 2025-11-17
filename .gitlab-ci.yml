@@ -23,42 +23,20 @@ test-filter:
     - main
     - master
 
-# Job pour builder et publier l'image Docker au GitLab Container Registry
+# Job pour builder et publier l'image Docker au GitLab Container Registry avec Kaniko
 build-docker:
   stage: build
-  image: docker:latest
-  services:
-    - name: docker:dind
-      command: ["--storage-driver=overlay2"]
+  image: gcr.io/kaniko-project/executor:latest
   variables:
     IMAGE_TAG: $CI_COMMIT_SHA
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_DRIVER: overlay2
-    DOCKER_TLS_CERTDIR: ""
-  before_script:
-    - sleep 30
-    - apk add --no-cache curl
-    - |
-      for i in $(seq 1 60); do
-        if docker info > /dev/null 2>&1; then
-          echo "Docker daemon is ready"
-          break
-        fi
-        echo "Waiting for Docker daemon... ($i/60)"
-        sleep 1
-      done
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
-    - cd Tweetoscope/InitialTweetoscope
-    - docker build -t $CI_REGISTRY_IMAGE:$IMAGE_TAG .
-    - docker tag $CI_REGISTRY_IMAGE:$IMAGE_TAG $CI_REGISTRY_IMAGE:latest
-    - docker push $CI_REGISTRY_IMAGE:$IMAGE_TAG
-    - docker push $CI_REGISTRY_IMAGE:latest
-  retry:
-    max: 2
-    when: 
-      - runner_system_failure
-      - stuck_or_timeout_failure
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor 
+        --context $CI_PROJECT_DIR/Tweetoscope/InitialTweetoscope 
+        --dockerfile $CI_PROJECT_DIR/Tweetoscope/InitialTweetoscope/Dockerfile
+        --destination $CI_REGISTRY_IMAGE:$IMAGE_TAG 
+        --destination $CI_REGISTRY_IMAGE:latest
   only:
     - main
     - master
