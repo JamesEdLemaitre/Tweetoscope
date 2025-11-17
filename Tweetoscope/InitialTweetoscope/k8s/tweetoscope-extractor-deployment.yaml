@@ -12,11 +12,9 @@ spec:
       labels:
         app: tweetoscope-extractor
     spec:
-      imagePullSecrets:
-      - name: gitlab-registry
       containers:
       - name: extractor
-        image: registry.gitlab.centralesupelec.fr/louca.malerba/tweetoscope25_group-10_lemaitre_thievon_malerba:latest
+        image: fthievon/tweetoscope-kafka:latest
         env:
         - name: SERVICE_JAR
           value: "KafkaHashtagExtractor"
