@@ -4,6 +4,8 @@ stages:
 pages:
   stage: publish
   image: texlive/texlive:latest
+  tags:
+    - docker
   script:
     - mkdir -p public
     - pdflatex -interaction=nonstopmode -output-directory=public CR.tex
