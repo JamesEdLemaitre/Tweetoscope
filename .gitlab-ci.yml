@@ -11,17 +11,17 @@ build-docker:
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
-    IMAGE_REGISTRY: registry.gitlab.centralesupelec.fr
-    IMAGE_NAME: $CI_PROJECT_PATH
     IMAGE_TAG: $CI_COMMIT_SHA
+  tags:
+    - docker
   before_script:
-    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $IMAGE_REGISTRY
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
     - cd Tweetoscope/InitialTweetoscope
-    - docker build -t $IMAGE_REGISTRY/$IMAGE_NAME:$IMAGE_TAG .
-    - docker build -t $IMAGE_REGISTRY/$IMAGE_NAME:latest .
-    - docker push $IMAGE_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
-    - docker push $IMAGE_REGISTRY/$IMAGE_NAME:latest
+    - docker build -t $CI_REGISTRY_IMAGE:$IMAGE_TAG .
+    - docker build -t $CI_REGISTRY_IMAGE:latest .
+    - docker push $CI_REGISTRY_IMAGE:$IMAGE_TAG
+    - docker push $CI_REGISTRY_IMAGE:latest
   only:
     - main
     - master
