@@ -353,6 +353,163 @@ Détectabilité: Immédiate
 
 $\rightarrow$ Tous les composants génèrent des erreurs de connexion et l'application s'arrête complètement. La détection est donc immédiate.
 
+\section{Architecture Docker}
+
+\subsection{Principes de la Conteneurisation}
+
+Docker permet d'empaqueter l'application avec toutes ses dépendances (JRE, librairies, configurations) dans un conteneur léger et portable. Cela garantit que l'application fonctionne de manière identique sur tout environnement : machine de développement, serveur de test, ou cluster de production.
+
+Notre projet utilise une image Docker unique \texttt{fthievon/tweetoscope-kafka:latest} pour tous les microservices (Producer, Filter, Extractor, Counter, Leaderboard). Cette approche est possible car tous les services partagent le même code de base et seul le JAR exécuté change selon le service déployé.
+
+\subsection{Fichier Dockerfile}
+
+Le Dockerfile suit une approche multi-stage pour réduire la taille de l'image finale :
+
+\begin{enumerate}
+    \item \textbf{Stage de compilation} : Utilise \texttt{maven:3.9-eclipse-temurin-11} pour compiler le projet Maven et générer les JARs
+    \item \textbf{Stage d'exécution} : Utilise \texttt{eclipse-temurin:11-jre-alpine} (image légère avec uniquement la JRE) pour exécuter l'application
+\end{enumerate}
+
+Le conteneur expose le port 8080 (utilisé par le leaderboard web server) et accepte des variables d'environnement pour configurer le service à lancer :
+
+\begin{itemize}
+    \item \texttt{SERVICE\_JAR} : Le JAR à exécuter (ex: \texttt{KafkaTweetFilter})
+    \item \texttt{KAFKA\_BOOTSTRAP\_SERVERS} : Adresse du broker Kafka (ex: \texttt{kafka:9092})
+    \item \texttt{ARGS} : Arguments supplémentaires passés au service
+\end{itemize}
+
+\subsection{Construction et Déploiement Local}
+
+Pour construire l'image Docker localement :
+
+\begin{verbatim}
+docker build -t tweetoscope-kafka .
+\end{verbatim}
+
+Pour lancer un service spécifique en local :
+
+\begin{verbatim}
+docker run -e SERVICE_JAR=KafkaTweetFilter \
+  -e KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
+  tweetoscope-kafka
+\end{verbatim}
+
+Pour déployer en production sur le registre DockerHub :
+
+\begin{verbatim}
+docker push fthievon/tweetoscope-kafka:latest
+\end{verbatim}
+
+\subsection{Avantages de la Conteneurisation}
+
+$\rightarrow$ \textbf{Portabilité} : L'image fonctionne sur tout environnement ayant Docker
+
+$\rightarrow$ \textbf{Isolation} : Chaque conteneur a son propre système de fichiers et ses ressources
+
+$\rightarrow$ \textbf{Scalabilité} : On peut rapidement créer plusieurs instances d'un même service
+
+$\rightarrow$ \textbf{Reproductibilité} : Les mêmes versions des dépendances sont utilisées partout
+
+\section{Architecture Kubernetes}
+
+\subsection{Introduction à Kubernetes}
+
+Kubernetes (K8s) est un orchestrateur de conteneurs qui automatise le déploiement, la mise à l'échelle et la gestion des applications conteneurisées. Contrairement à Docker Compose qui fonctionne sur une seule machine, Kubernetes gère des clusters avec plusieurs nœuds physiques et distribue les conteneurs de manière optimale.
+
+Dans notre projet, nous utilisons Kubernetes pour orchestrer les 5 microservices de Tweetoscope et Apache Kafka sur un cluster, assurant ainsi une disponibilité élevée et une résilience aux défaillances.
+
+\subsection{Structure du Cluster et des Deployments}
+
+Un cluster Kubernetes se compose de :
+
+\begin{itemize}
+    \item \textbf{Nœuds (Nodes)} : Machines physiques ou virtuelles qui exécutent les conteneurs
+    \item \textbf{Pods} : Unité minimale de déploiement contenant un ou plusieurs conteneurs
+    \item \textbf{Deployments} : Spécifications pour maintenir un nombre donné de replicas d'un Pod
+    \item \textbf{Services} : Points d'accès réseau pour communiquer avec les Pods
+\end{itemize}
+
+Notre projet contient 5 fichiers de déploiement dans le répertoire \texttt{k8s/} :
+
+\begin{enumerate}
+    \item \texttt{tweetoscope-producer-deployment.yaml} : Produit les tweets
+    \item \texttt{tweetoscope-filter-deployment.yaml} : Filtre les tweets
+    \item \texttt{tweetoscope-extractor-deployment.yaml} : Extrait les hashtags
+    \item \texttt{tweetoscope-counter-deployment.yaml} : Compte les occurrences
+    \item \texttt{tweetoscope-leaderboard-deployment.yaml} : Affiche le leaderboard (avec service web)
+\end{enumerate}
+
+Chaque deployment utilise l'image Docker \texttt{fthievon/tweetoscope-kafka:latest} du registre public DockerHub. Puisque l'image est publique, aucune authentification (imagePullSecrets) n'est nécessaire.
+
+\subsection{Deployments et Services}
+
+Chaque deployment Kubernetes spécifie :
+
+\begin{itemize}
+    \item \textbf{Nombre de replicas} : Combien de copies du Pod doivent tourner simultanément
+    \item \textbf{Conteneur} : Image Docker, variables d'environnement, limites de ressources
+    \item \textbf{Sélecteurs} : Identifiants pour trouver et gérer les Pods
+\end{itemize}
+
+Le service \texttt{tweetoscope-leaderboard-service.yaml} expose le web server du leaderboard sur le port 8080, le rendant accessible depuis l'extérieur du cluster. Les autres services communiquent via les noms DNS internes Kubernetes (ex: \texttt{kafka:9092} est automatiquement résolu vers le broker Kafka).
+
+\subsection{Variables d'Environnement et Configuration}
+
+Chaque deployment passe des variables d'environnement au conteneur :
+
+\begin{itemize}
+    \item \texttt{SERVICE\_JAR} : Défini selon le service (KafkaTweetFilter, KafkaHashtagCounter, etc.)
+    \item \texttt{KAFKA\_BOOTSTRAP\_SERVERS} : Pointe vers le service Kafka interne du cluster
+    \item \texttt{ARGS} : Arguments supplémentaires pour le filtrage, la langue, etc.
+\end{itemize}
+
+\subsection{Déploiement sur Kubernetes}
+
+Pour déployer tous les services sur le cluster :
+
+\begin{verbatim}
+kubectl apply -f k8s/
+\end{verbatim}
+
+Pour vérifier le statut des deployments :
+
+\begin{verbatim}
+kubectl get deployments
+kubectl get pods
+kubectl logs <pod-name>
+\end{verbatim}
+
+Pour redimensionner un service (ex: 3 replicas du filter) :
+
+\begin{verbatim}
+kubectl scale deployment tweetoscope-filter \
+  --replicas=3
+\end{verbatim}
+
+\subsection{Avantages de Kubernetes vs Docker Compose}
+
+$\rightarrow$ \textbf{Haute disponibilité} : Si un Pod crashe, un nouveau remplace automatiquement
+
+$\rightarrow$ \textbf{Scalabilité horizontale} : Ajouter des replicas se fait en une commande
+
+$\rightarrow$ \textbf{Gestion des nœuds} : Distribue les Pods optimalement sur les nœuds disponibles
+
+$\rightarrow$ \textbf{Rolling updates} : Mises à jour sans interruption du service
+
+$\rightarrow$ \textbf{Isolation réseau} : Services communiquent via DNS sans exposition inutile
+
+$\rightarrow$ \textbf{Production-ready} : Standard de l'industrie pour les applications distribuées
+
+\subsection{Défis et Limitations}
+
+$\rightarrow$ Kubernetes est plus complexe que Docker Compose et nécessite une courbe d'apprentissage
+
+$\rightarrow$ La configuration réseau et les troubleshooting peuvent être complexes
+
+$\rightarrow$ Pour un petit projet, Docker Compose peut être suffisant et plus simple à mettre en place
+
+$\rightarrow$ Dans notre cas, nous avons utilisé Kind (Kubernetes in Docker) pour développer et tester localement avant le déploiement en production
+
  
 \end{document}
          
