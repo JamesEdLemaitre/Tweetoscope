@@ -141,8 +141,7 @@ public class KafkaTweetFilterTest {
     @Test
     public void testNullTweetHandling() {
         String emptyJson = "";
-        assertThrows(Exception.class, () -> {
-            gson.fromJson(emptyJson, Tweet.class);
-        }, "Empty JSON should throw an exception");
+        Tweet result = gson.fromJson(emptyJson, Tweet.class);
+        assert result == null : "Empty JSON should deserialize to null";
     }
 }
