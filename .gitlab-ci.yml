@@ -26,6 +26,7 @@ test-filter:
 # Job pour builder et publier l'image Docker au GitLab Container Registry
 build-docker:
   stage: build
+  image: docker:latest
   tags:
     - docker
   variables:
