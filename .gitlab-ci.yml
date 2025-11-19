@@ -37,14 +37,21 @@ sonarqube-scan:
     SONAR_LOGIN: admin
     SONAR_PASSWORD: admin
   before_script:
-    - echo "Waiting for SonarQube to start (this takes 60-90 seconds)..."
     - apt-get update && apt-get install -y curl
-    - for i in $(seq 1 120); do STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u admin:admin http://sonarqube:9000/api/system/health 2>/dev/null); if [ "$STATUS" = "200" ]; then echo "SonarQube HTTP 200 OK"; break; fi; echo "Attempt $i: Status $STATUS"; sleep 1; done
-    - echo "Waiting additional 30 seconds for full initialization..."
-    - sleep 30
-    - echo "Verifying SonarQube is fully ready..."
-    - curl -s -u admin:admin http://sonarqube:9000/api/system/health
+    - echo "Waiting for SonarQube startup..."
   script:
+    - |
+      for i in $(seq 1 120); do
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u admin:admin http://sonarqube:9000/api/system/health 2>/dev/null)
+        if [ "$STATUS" = "200" ]; then
+          echo "SonarQube ready after attempt $i"
+          break
+        fi
+        echo "Attempt $i/120: HTTP $STATUS"
+        sleep 1
+      done
+    - echo "Waiting 30 seconds for full initialization..."
+    - sleep 30
     - cd Tweetoscope/InitialTweetoscope
     - mvn clean verify sonar:sonar -Dsonar.projectKey=tweetoscope -Dsonar.projectName=Tweetoscope -Dsonar.sources=src/main/java -Dsonar.tests=src/test/java -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.password=$SONAR_PASSWORD
   artifacts:
