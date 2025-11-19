@@ -56,15 +56,7 @@ sonarqube-scan:
     - echo "Health check response: $HEALTH"
     - echo "$HEALTH" | grep -q '"status":"UP"' && echo "✓ SonarQube is UP!" || (echo "✗ SonarQube failed to start properly" && echo "Response was: $HEALTH" && exit 1)
     # Lancer l'analyse
-    - mvn clean verify sonar:sonar 
-      -Dsonar.projectKey=tweetoscope
-      -Dsonar.projectName=Tweetoscope
-      -Dsonar.sources=src/main/java
-      -Dsonar.tests=src/test/java
-      -Dsonar.host.url=$SONAR_HOST_URL
-      -Dsonar.login=$SONAR_LOGIN
-      -Dsonar.password=$SONAR_PASSWORD
-      -Dsonar.scm.disabled=false
+    - mvn clean verify sonar:sonar -Dsonar.projectKey=tweetoscope -Dsonar.projectName=Tweetoscope -Dsonar.sources=src/main/java -Dsonar.tests=src/test/java -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.password=$SONAR_PASSWORD -Dsonar.scm.disabled=false
   artifacts:
     when: always
     paths:
