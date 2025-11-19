@@ -1,7 +1,13 @@
 package tweetoscope.kafka;
 
-import static org.junit.jupiter.api.Assertions.*;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -15,9 +21,6 @@ import tweetoscope.tweetsFilter.EmptyTweetFilter;
 import tweetoscope.tweetsFilter.LangTweetFilter;
 import tweetoscope.tweetsFilter.RecentTweetFilter;
 import tweetoscope.tweetsFilter.TweetFilter;
-
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 
 /**
  * Unit tests for KafkaTweetFilter class
@@ -143,5 +146,128 @@ public class KafkaTweetFilterTest {
         String emptyJson = "";
         Tweet result = gson.fromJson(emptyJson, Tweet.class);
         assert result == null : "Empty JSON should deserialize to null";
+    }
+
+    /**
+     * Test that invalid JSON throws exception during deserialization
+     */
+    @Test
+    public void testInvalidJsonDeserialization() {
+        String invalidJson = "{invalid json format}";
+        Exception exception = assertThrows(Exception.class, () -> 
+            gson.fromJson(invalidJson, Tweet.class));
+        assertNotNull(exception, "Exception should be thrown for invalid JSON");
+    }
+
+    /**
+     * Test that JSON with missing required fields deserializes gracefully
+     */
+    @Test
+    public void testJsonWithMissingFields() {
+        String incompleteJson = "{\"id\":\"444444444\"}";
+        Tweet tweet = gson.fromJson(incompleteJson, Tweet.class);
+        
+        assertNotNull(tweet, "Tweet with missing fields should deserialize to a Tweet object");
+        assertEquals("444444444", tweet.getId(), "Tweet ID should still be present");
+        // text and lang may be null, which is acceptable
+    }
+
+    /**
+     * Test that tweets with special characters are properly handled
+     */
+    @Test
+    public void testTweetWithSpecialCharacters() {
+        String specialCharJson = "{\"id\":\"555555555\",\"text\":\"Hello 🌍 世界 Привет\",\"lang\":\"en\"}";
+        Tweet tweet = gson.fromJson(specialCharJson, Tweet.class);
+
+        assertNotNull(tweet, "Tweet with special characters should not be null");
+        assertEquals("Hello 🌍 世界 Привет", tweet.getText(), "Tweet text should contain special characters");
+        assertTrue(emptyFilter.isMatching(tweet), "EmptyTweetFilter should accept tweets with special characters");
+    }
+
+    /**
+     * Test that LangTweetFilter throws NPE with null language field (bug in implementation)
+     * This reveals a potential bug: the filter doesn't check for null language
+     */
+    @Test
+    public void testLangTweetFilterWithNullLanguage() {
+        String tweetJsonNoLang = "{\"id\":\"666666666\",\"text\":\"No language specified\"}";
+        Tweet tweet = gson.fromJson(tweetJsonNoLang, Tweet.class);
+
+        assertNotNull(tweet, "Tweet should not be null");
+        // Current implementation throws NPE because it doesn't null-check tweet.getLang()
+        Exception exception = assertThrows(NullPointerException.class, 
+            () -> langFilter.isMatching(tweet),
+            "LangTweetFilter should throw NPE for null language (implementation bug)");
+        assertNotNull(exception, "NullPointerException should be thrown");
+    }
+
+    /**
+     * Test that RecentTweetFilter handles null created_at field gracefully
+     */
+    @Test
+    public void testRecentTweetFilterWithNullCreatedAt() {
+        String tweetJsonNoDate = "{\"id\":\"777777777\",\"text\":\"No date specified\",\"lang\":\"en\"}";
+        Tweet tweet = gson.fromJson(tweetJsonNoDate, Tweet.class);
+
+        assertNotNull(tweet, "Tweet should not be null");
+        // Should not match because created_at is null
+        assertFalse(recentFilter.isMatching(tweet), "RecentTweetFilter should reject tweets with null created_at");
+    }
+
+    /**
+     * Test that tweets with empty text are handled correctly
+     */
+    @Test
+    public void testTweetWithEmptyText() {
+        String emptyTextJson = "{\"id\":\"888888888\",\"text\":\"\",\"lang\":\"en\"}";
+        Tweet tweet = gson.fromJson(emptyTextJson, Tweet.class);
+
+        assertNotNull(tweet, "Tweet with empty text should not be null");
+        assertTrue(emptyFilter.isMatching(tweet), "EmptyTweetFilter should accept tweets with empty text");
+    }
+
+    /**
+     * Test multiple filters in sequence (AND logic)
+     */
+    @Test
+    public void testMultipleFiltersInSequence() {
+        OffsetDateTime now = OffsetDateTime.now();
+        String tweetJson = "{\"id\":\"999999999\",\"text\":\"Recent English tweet\",\"lang\":\"en\",\"created_at\":\"" + 
+                now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME) + "\"}";
+        Tweet tweet = gson.fromJson(tweetJson, Tweet.class);
+
+        assertNotNull(tweet, "Tweet should not be null");
+        assertTrue(emptyFilter.isMatching(tweet), "Should pass EmptyTweetFilter");
+        assertTrue(langFilter.isMatching(tweet), "Should pass LangTweetFilter for English");
+        assertTrue(recentFilter.isMatching(tweet), "Should pass RecentTweetFilter");
+    }
+
+    /**
+     * Test that a tweet fails multiple filters (no AND logic, independent filters)
+     */
+    @Test
+    public void testTweetFailsMultipleFilters() {
+        OffsetDateTime oldDate = OffsetDateTime.now().minusDays(60);
+        String tweetJson = "{\"id\":\"101010101\",\"text\":\"Old French tweet\",\"lang\":\"fr\",\"created_at\":\"" + 
+                oldDate.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME) + "\"}";
+        Tweet tweet = gson.fromJson(tweetJson, Tweet.class);
+
+        assertNotNull(tweet, "Tweet should not be null");
+        assertTrue(emptyFilter.isMatching(tweet), "Should pass EmptyTweetFilter");
+        assertFalse(langFilter.isMatching(tweet), "Should fail LangTweetFilter (French, not English)");
+        assertFalse(recentFilter.isMatching(tweet), "Should fail RecentTweetFilter (too old)");
+    }
+
+    /**
+     * Test Gson handling of whitespace and special JSON structures
+     */
+    @Test
+    public void testGsonWithWhitespaceAndLineBreaks() {
+        String tweetJsonWithWhitespace = "{\"id\":\"111111110\",\"text\":\"Tweet with\\nline breaks\",\"lang\":\"en\"}";
+        Tweet tweet = gson.fromJson(tweetJsonWithWhitespace, Tweet.class);
+
+        assertNotNull(tweet, "Tweet should not be null");
+        assertTrue(tweet.getText().contains("\\n") || tweet.getText().contains("\n"), "Text should preserve line breaks");
     }
 }
