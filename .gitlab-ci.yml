@@ -38,35 +38,12 @@ sonarqube-scan:
     SONAR_PASSWORD: admin
   before_script:
     - apt-get update && apt-get install -y curl
-    - echo "Waiting for SonarQube startup..."
   script:
-    - |
-      for i in $(seq 1 120); do
-        STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u admin:admin http://sonarqube:9000/api/system/health 2>/dev/null)
-        if [ "$STATUS" = "200" ]; then
-          echo "SonarQube ready after attempt $i"
-          break
-        fi
-        echo "Attempt $i/120: HTTP $STATUS"
-        sleep 1
-      done
-    - echo "Waiting 30 seconds for full initialization..."
+    - echo "Waiting for SonarQube to be ready..."
+    - sh -c 'for i in $(seq 1 120); do STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u admin:admin http://sonarqube:9000/api/system/health 2>/dev/null); if [ "$STATUS" = "200" ]; then echo "SonarQube ready"; break; fi; echo "Attempt $i"; sleep 1; done'
     - sleep 30
     - cd Tweetoscope/InitialTweetoscope
-    - echo "Starting SonarQube analysis with Maven..."
     - mvn clean verify sonar:sonar -Dsonar.projectKey=tweetoscope -Dsonar.projectName=Tweetoscope -Dsonar.sources=src/main/java -Dsonar.tests=src/test/java -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.password=$SONAR_PASSWORD
-    - echo ""
-    - echo "========================================"
-    - echo "SonarQube Analysis Completed Successfully"
-    - echo "========================================"
-    - echo ""
-    - echo "Analysis performed on:"
-    - echo "- Project Key: tweetoscope"
-    - echo "- Source Code: src/main/java"
-    - echo "- Tests: src/test/java"
-    - echo ""
-    - echo "Check the Maven logs above for ANALYSIS SUCCESSFUL message"
-    - echo "to view the complete results."
   artifacts:
     when: always
     paths:
