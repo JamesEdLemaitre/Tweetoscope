@@ -1,10 +1,10 @@
 stages:
-  - test
-  - publish
+  - test JUnit
+  - publish CR to Gitlab Pages
 
 # Job pour exécuter les tests JUnit
-test-filter:
-  stage: test
+JUnit-test-filter:
+  stage: test JUnit
   image: maven:3.9-eclipse-temurin-11
   tags:
     - docker
@@ -23,7 +23,7 @@ test-filter:
     - master
 
 pages:
-  stage: publish
+  stage: publish CR to Gitlab Pages
   image: texlive/texlive:latest
   tags:
     - docker
