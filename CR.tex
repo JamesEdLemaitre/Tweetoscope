@@ -503,116 +503,164 @@ $\rightarrow$ \textbf{Scalabilité} : On peut rapidement créer plusieurs instan
 
 $\rightarrow$ \textbf{Reproductibilité} : Les mêmes versions des dépendances sont utilisées partout
 
-\section{Task 12 : Orchestration Kubernetes}
+\section{Task 12 : Kubernetes Deployment}
 
-\subsection{Introduction à Kubernetes}
+\subsection{Overview of the Deployment}
 
-Kubernetes (K8s) est un orchestrateur de conteneurs qui automatise le déploiement, la mise à l'échelle et la gestion des applications conteneurisées. Contrairement à Docker Compose qui fonctionne sur une seule machine, Kubernetes gère des clusters avec plusieurs nœuds physiques et distribue les conteneurs de manière optimale.
+The Tweetoscope application, previously containerized using Docker (Task 11), has been deployed on a Kubernetes cluster to leverage orchestration capabilities and improve fault tolerance. The deployment architecture consists of several microservices communicating via Apache Kafka topics.
 
-Dans notre projet, nous utilisons Kubernetes pour orchestrer les 5 microservices de Tweetoscope et Apache Kafka sur un cluster, assurant ainsi une disponibilité élevée et une résilience aux défaillances.
+The cluster was configured with a multi-node setup using Kind (Kubernetes in Docker), consisting of one control-plane node and two worker nodes. This configuration enables pod distribution across multiple nodes, providing the foundation for fault tolerance testing.
 
-\subsubsection{Travaux Effectués}
+\subsection{Kubernetes Resources Used}
 
-\begin{itemize}
-    \item \textbf{Configuration du cluster Kubernetes} : Mise en place d'un cluster Kind (Kubernetes in Docker) pour développement et tests locaux
-    \item \textbf{Création de 5 fichiers de déploiement YAML} : Un pour chaque microservice (Producer, Filter, Extractor, Counter, Leaderboard)
-    \item \textbf{Configuration des services réseau} : Exposition du leaderboard web server sur le port 8080
-    \item \textbf{Gestion des variables d'environnement} : Passage des configurations Kafka aux conteneurs via deployments YAML
-    \item \textbf{Intégration des images Docker} : Utilisation de \texttt{fthievon/tweetoscope-kafka:latest} depuis DockerHub (images publiques)
-    \item \textbf{Suppression de imagePullSecrets} : Simplification en utilisant des images publiques (pas d'authentification nécessaire)
-\end{itemize}
+The deployment leverages several Kubernetes resource types to orchestrate the Tweetoscope microservices.
 
-\subsection{Structure du Cluster et des Deployments}
+\subsubsection{Deployments}
 
-Un cluster Kubernetes se compose de :
+Each microservice (Producer, Filter, Extractor, Counter, Leaderboard) is managed by a Deployment object, which ensures the desired number of pod replicas are running at all times. Currently, each Deployment is configured with a single replica (\texttt{replicas: 1}), though this can be scaled horizontally to improve availability. The Kafka broker is also deployed as a Deployment with restart policies configured to \texttt{Always}, enabling automatic recovery from crashes.
+
+\subsubsection{Services}
+
+Two ClusterIP Services are deployed:
 
 \begin{itemize}
-    \item \textbf{Nœuds (Nodes)} : Machines physiques ou virtuelles qui exécutent les conteneurs
-    \item \textbf{Pods} : Unité minimale de déploiement contenant un ou plusieurs conteneurs
-    \item \textbf{Deployments} : Spécifications pour maintenir un nombre donné de replicas d'un Pod
-    \item \textbf{Services} : Points d'accès réseau pour communiquer avec les Pods
+    \item \texttt{kafka}: Exposes the Kafka broker internally on port 9092, providing stable DNS resolution (\texttt{kafka:9092}) for all producer and consumer pods. This abstraction decouples pods from the dynamic IP addresses assigned to Kafka pods.
+    \item \texttt{tweetoscope-leaderboard}: Exposes the Leaderboard API on port 8080, enabling access to the real-time rankings endpoint.
 \end{itemize}
 
-Notre projet contient 5 fichiers de déploiement dans le répertoire \texttt{k8s/} :
+\subsection{PersistentVolumeClaim: Implementation and Constraints}
+
+The Kafka Deployment was initially designed to use a \textbf{PersistentVolumeClaim (PVC)}
+for data persistence. A PVC is a Kubernetes resource that requests storage from
+the cluster, abstracting the underlying storage infrastructure (NFS, cloud
+provider volumes, local disks, etc.). This configuration was successfully tested
+in a multi-node local cluster using Kind.
+
+Using a PVC would provide:
+
+\begin{itemize}
+    \item \textbf{Data durability across pod lifecycle events}: data persists through restarts, crashes, and rescheduling.
+    \item \textbf{Persistence beyond Deployment lifetime}: data remains even if the Deployment is deleted and recreated.
+    \item \textbf{Node failure resilience}: storage is decoupled from the hosting node.
+    \item \textbf{Separation of concerns}: compute (pods) and storage (volumes) are managed independently.
+\end{itemize}
+
+\subsubsection*{Deployment Constraint: Cluster Permissions}
+
+However, when deploying on the school's Kubernetes cluster, the PVC remained in
+\texttt{Pending} state with the following error:
+
+\begin{quote}
+\textit{``no persistent volumes available for this claim and no storage class is set''}
+\end{quote}
+
+\subsubsection{Root Cause}
+
+The issue arises because the cluster does not provide a default \texttt{StorageClass} for dynamic provisioning, nor does it offer pre-allocated \texttt{PersistentVolumes} accessible to student namespaces. Additionally, administrator privileges, required to configure storage resources, are not available.
+
+\subsubsection{Testing Performed}
+
+PVC functionality was successfully verified on local Kubernetes clusters using Kind. However, on the school cluster, PVCs cannot be used due to these storage-related permission restrictions.
+
+\subsubsection{Production Solution: \texttt{emptyDir}}
+
+For deployment on the school's cluster, the implementation uses an
+\texttt{emptyDir} volume instead.
+
+\subsubsection{Characteristics of emptyDir}
+
+An \texttt{emptyDir} volume provides ephemeral storage on the node hosting the Kafka pod and persists only as long as the pod continues running on that same node. It also supports pod restarts managed by the Deployment controller.
+
+However, data is lost when:
+
+\begin{itemize}
+    \item the pod is rescheduled to another node,
+    \item the Deployment is deleted,
+    \item the node fails.
+\end{itemize}
+
+\subsubsection{Topic Creation Job}
+
+A Kubernetes Job (\texttt{topic-creator}) is executed once during deployment to create the necessary Kafka topics (\texttt{raw-tweets}, \texttt{filtered-tweets}, \texttt{hashtags}, \texttt{leaderboards}). The Job runs to completion and does not restart, ensuring idempotent topic initialization.
+
+\section{Risk Mitigation Using Kubernetes}
+
+\subsection{Link with the Initial Risk Analysis}
+
+In Task 8, we identified several critical risks inherent to the Tweetoscope architecture:
 
 \begin{enumerate}
-    \item \texttt{tweetoscope-producer-deployment.yaml} : Produit les tweets
-    \item \texttt{tweetoscope-filter-deployment.yaml} : Filtre les tweets
-    \item \texttt{tweetoscope-extractor-deployment.yaml} : Extrait les hashtags
-    \item \texttt{tweetoscope-counter-deployment.yaml} : Compte les occurrences
-    \item \texttt{tweetoscope-leaderboard-deployment.yaml} : Affiche le leaderboard (avec service web)
+    \item \textbf{Component Crash}: Failure of a producer, consumer, or Kafka broker leading to service interruption.
+    \item \textbf{Node Failure}: Hardware or network failure causing all pods on a node to become unavailable.
+    \item \textbf{Data Loss}: Loss of in-flight messages or persistent Kafka data due to storage failures.
+    \item \textbf{Resource Exhaustion}: Memory leaks or CPU spikes causing pod crashes and cascading failures.
+    \item \textbf{Deployment Errors}: Faulty updates causing application downtime.
 \end{enumerate}
 
-Chaque deployment utilise l'image Docker \texttt{fthievon/tweetoscope-kafka:latest} du registre public DockerHub. Puisque l'image est publique, aucune authentification (imagePullSecrets) n'est nécessaire.
+Kubernetes does not eliminate these risks entirely but provides robust mechanisms to detect failures, automate recovery, and minimize downtime. The following subsections analyze how Kubernetes mitigates each scenario compared to standalone Docker or manual orchestration.
 
-\subsection{Deployments et Services}
+\subsection{Failure Scenarios and Mitigations}
 
-Chaque deployment Kubernetes spécifie :
+\subsubsection{Scenario 1: Pod Crash (e.g., Producer or Consumer)}
 
-\begin{itemize}
-    \item \textbf{Nombre de replicas} : Combien de copies du Pod doivent tourner simultanément
-    \item \textbf{Conteneur} : Image Docker, variables d'environnement, limites de ressources
-    \item \textbf{Sélecteurs} : Identifiants pour trouver et gérer les Pods
-\end{itemize}
+\textbf{Without Kubernetes}: If a producer pod crashes due to an unhandled exception or memory leak, the service stops indefinitely until manual intervention restarts the container. During this period, no new tweets are generated, causing gaps in the data pipeline.
 
-Le service \texttt{tweetoscope-leaderboard-service.yaml} expose le web server du leaderboard sur le port 8080, le rendant accessible depuis l'extérieur du cluster. Les autres services communiquent via les noms DNS internes Kubernetes (ex: \texttt{kafka:9092} est automatiquement résolu vers le broker Kafka).
+\textbf{With Kubernetes}: The Deployment controller continuously monitors the desired state (\texttt{replicas: 1}). When a pod crashes, Kubernetes automatically schedules a replacement pod, typically recovering within 20--40 seconds. The new pod reconnects to Kafka using the stable \texttt{kafka:9092} DNS name and resumes processing.
 
-\subsection{Variables d'Environnement et Configuration}
+\textbf{Impact}: Temporary data lag during restart, but no permanent loss since Kafka retains unconsumed messages.
 
-Chaque deployment passe des variables d'environnement au conteneur :
+\subsubsection{Scenario 2: Worker Node Failure}
 
-\begin{itemize}
-    \item \texttt{SERVICE\_JAR} : Défini selon le service (KafkaTweetFilter, KafkaHashtagCounter, etc.)
-    \item \texttt{KAFKA\_BOOTSTRAP\_SERVERS} : Pointe vers le service Kafka interne du cluster
-    \item \texttt{ARGS} : Arguments supplémentaires pour le filtrage, la langue, etc.
-\end{itemize}
+\textbf{Without Kubernetes}: If a machine hosting containers fails, all services on that machine become unavailable. Restarting them on another machine requires manual intervention and reconfiguration.
 
-\subsection{Déploiement sur Kubernetes}
+\textbf{With Kubernetes (local PVC setup)}:  
+The control-plane detects node failure and reschedules pods on healthy nodes. Stateless services recover seamlessly. Kafka benefits from persistent storage.
 
-Pour déployer tous les services sur le cluster :
+\textbf{With Kubernetes on the school cluster (emptyDir)}:  
+Kafka is rescheduled, but its state is lost because storage is node-local.
 
-\begin{verbatim}
-kubectl apply -f k8s/
-\end{verbatim}
+\textbf{Impact}:  
+1–2 minutes downtime for stateless services, 2–3 minutes for Kafka.  
+Potential data loss if using \texttt{emptyDir}.
 
-Pour vérifier le statut des deployments :
+\subsubsection{Scenario 3: Kafka Broker Crash}
 
-\begin{verbatim}
-kubectl get deployments
-kubectl get pods
-kubectl logs <pod-name>
-\end{verbatim}
+\textbf{Without Kubernetes}: Kafka crash halts producers and consumers. Manual restart required.
 
-Pour redimensionner un service (ex: 3 replicas du filter) :
+\textbf{With Kubernetes (PVC)}:  
+Pod is restarted automatically, and Kafka recovers its logs from persistent storage.
 
-\begin{verbatim}
-kubectl scale deployment tweetoscope-filter \
-  --replicas=3
-\end{verbatim}
+\textbf{With Kubernetes (emptyDir)}:  
+Data is preserved only if the pod restarts on the same node.
 
-\subsection{Avantages de Kubernetes vs Docker Compose}
+\textbf{Impact}:  
+Short unavailability with PVC, but possible data loss with \texttt{emptyDir}.
 
-$\rightarrow$ \textbf{Haute disponibilité} : Si un Pod crashe, un nouveau remplace automatiquement
+\subsubsection{Scenario 4: Rolling Update Failure}
 
-$\rightarrow$ \textbf{Scalabilité horizontale} : Ajouter des replicas se fait en une commande
+\textbf{Without Kubernetes}: Updating implies downtime and manual rollback.
 
-$\rightarrow$ \textbf{Gestion des nœuds} : Distribue les Pods optimalement sur les nœuds disponibles
+\textbf{With Kubernetes}:  
+Rolling updates maintain service continuity. Failed health checks halt the rollout. Rollback is one command away.
 
-$\rightarrow$ \textbf{Rolling updates} : Mises à jour sans interruption du service
+\textbf{Impact}: Zero-downtime updates for stateless services.
 
-$\rightarrow$ \textbf{Isolation réseau} : Services communiquent via DNS sans exposition inutile
+\subsubsection{Scenario 5: Resource Exhaustion (Memory Leak)}
 
-$\rightarrow$ \textbf{Production-ready} : Standard de l'industrie pour les applications distribuées
+\textbf{Without Kubernetes}: A memory leak can affect other services on the machine.
 
-\subsection{Défis et Limitations}
+\textbf{With Kubernetes}: Resource limits enforce pod termination and restart, preventing cascading failures.
 
-$\rightarrow$ Kubernetes est plus complexe que Docker Compose et nécessite une courbe d'apprentissage
+\textbf{Impact}: Minor disruption, global system stays stable.
 
-$\rightarrow$ La configuration réseau et les troubleshooting peuvent être complexes
+\subsection{Limitations of Kubernetes-Based Mitigation} While Kubernetes significantly improves fault tolerance, it is not a silver bullet: \begin{itemize} \item \textbf{Data Loss Risks}: Kubernetes cannot prevent data loss if Kafka is misconfigured (e.g., \texttt{acks=0}, no replication). In our single-broker setup, disk corruption or node-level storage failure could still result in data loss. A production deployment would require Kafka replication (\texttt{replication.factor > 1}) across multiple brokers. \item \textbf{Message Duplication}: During pod restarts, Kafka consumers may reprocess messages if offsets are not committed transactionally. This requires application-level idempotency checks. \item \textbf{Configuration Errors}: Kubernetes automates recovery from runtime failures but cannot detect logical errors (e.g., incorrect topic names, wrong deserialization logic). These require robust testing and monitoring. \item \textbf{Single Points of Failure}: The current deployment uses a single Kafka broker and single-replica microservices. While Kubernetes restarts failed pods, there is no redundancy during the restart window. Scaling to multiple replicas (\texttt{replicas: 3}) and deploying a multi-broker Kafka cluster would eliminate these bottlenecks.S
+\\[0.3em]
+\textit{Note: During local testing, scaling to multiple replicas and a multi-broker Kafka cluster overloaded the Docker environment, causing instability and repeated daemon crashes due to CPU and memory saturation. While this made large-scale replication tests impractical, node-failure scenarios with PVCs were successfully validated, and Kafka state remained persistent across rescheduling events.}
 
-$\rightarrow$ Pour un petit projet, Docker Compose peut être suffisant et plus simple à mettre en place
 
-$\rightarrow$ Dans notre cas, nous avons utilisé Kind (Kubernetes in Docker) pour développer et tester localement avant le déploiement en production
+\item \textbf{Control-Plane Failure}: If the Kubernetes control-plane (API server, scheduler) fails, no new pods can be scheduled, though existing pods continue running. High-availability Kubernetes setups (multiple control-plane nodes) are needed for production. \end{itemize}
+
+In conclusion, Kubernetes transforms the Tweetoscope architecture from a fragile, manually-managed system into a self-healing, scalable platform. However, achieving true high availability requires complementary strategies: Kafka replication, multi-replica deployments, health checks (liveness/readiness probes), resource limits, and comprehensive monitoring.
 
 \section{Task 13 : Pipeline CI/CD avec Compilation PDF}
 
