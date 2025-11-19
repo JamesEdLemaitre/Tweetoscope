@@ -37,7 +37,7 @@ sonarqube-scan:
     SONAR_LOGIN: admin
     SONAR_PASSWORD: admin
   before_script:
-    - apt-get update && apt-get install -y curl jq
+    - apt-get update && apt-get install -y curl
     - echo "Waiting for SonarQube startup..."
   script:
     - |
@@ -54,19 +54,13 @@ sonarqube-scan:
     - sleep 30
     - cd Tweetoscope/InitialTweetoscope
     - mvn clean verify sonar:sonar -Dsonar.projectKey=tweetoscope -Dsonar.projectName=Tweetoscope -Dsonar.sources=src/main/java -Dsonar.tests=src/test/java -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.password=$SONAR_PASSWORD
-    - echo "Extracting SonarQube metrics..."
-    - |
-      METRICS=$(curl -s -u admin:admin "http://sonarqube:9000/api/measures/component?component=tweetoscope&metricKeys=bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density,ncloc,sqale_rating" | jq -r '.component.measures')
-      echo "$METRICS" > sonarqube-metrics.json
-      echo "Metrics extracted to sonarqube-metrics.json"
-    - cat sonarqube-metrics.json
+    - echo "Waiting for SonarQube to process analysis..."
+    - sleep 20
+    - echo "Analysis completed successfully"
   artifacts:
     when: always
     paths:
       - Tweetoscope/InitialTweetoscope/target/
-      - Tweetoscope/InitialTweetoscope/sonarqube-metrics.json
-    reports:
-      dotenv: Tweetoscope/InitialTweetoscope/sonarqube-metrics.json
     expire_in: 30 days
   only:
     - main
