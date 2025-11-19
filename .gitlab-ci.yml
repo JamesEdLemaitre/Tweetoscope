@@ -38,11 +38,23 @@ sonarqube-scan:
     SONAR_PASSWORD: admin
   script:
     - cd Tweetoscope/InitialTweetoscope
-    # Attendre que SonarQube soit prêt
-    - echo "Waiting for SonarQube to start..."
-    - for i in {1..30}; do curl -s http://sonarqube:9000/api/system/health && break || sleep 2; done
+    # Attendre que SonarQube soit complètement prêt
+    - echo "Waiting for SonarQube to be ready..."
+    - |
+      for i in {1..60}; do
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://sonarqube:9000/api/system/health 2>/dev/null)
+        if [ "$STATUS" = "200" ]; then
+          echo "SonarQube is ready!"
+          break
+        fi
+        echo "Attempt $i/60: HTTP status $STATUS, waiting..."
+        sleep 2
+      done
+    # Vérifier que SonarQube est vraiment UP
+    - sleep 10
+    - curl -s http://sonarqube:9000/api/system/health | grep -q '"status":"UP"' && echo "SonarQube is UP!" || (echo "SonarQube failed to start properly" && exit 1)
     # Lancer l'analyse
-    - mvn verify sonar:sonar
+    - mvn clean verify sonar:sonar 
       -Dsonar.projectKey=tweetoscope
       -Dsonar.projectName=Tweetoscope
       -Dsonar.sources=src/main/java
@@ -50,10 +62,11 @@ sonarqube-scan:
       -Dsonar.host.url=$SONAR_HOST_URL
       -Dsonar.login=$SONAR_LOGIN
       -Dsonar.password=$SONAR_PASSWORD
+      -Dsonar.scm.disabled=false
   artifacts:
     when: always
     paths:
-      - Tweetoscope/InitialTweetoscope/target/sonar/
+      - Tweetoscope/InitialTweetoscope/target/
     expire_in: 30 days
   only:
     - main
