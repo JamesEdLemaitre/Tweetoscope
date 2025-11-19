@@ -1,5 +1,6 @@
 stages:
   - test JUnit
+  - quality
   - publish CR to Gitlab Pages
 
 # Job pour exécuter les tests JUnit
@@ -21,6 +22,44 @@ JUnit-test-filter:
   only:
     - main
     - master
+
+# Job pour analyser la qualité du code avec SonarQube
+sonarqube-scan:
+  stage: quality
+  image: maven:3.9-eclipse-temurin-11
+  tags:
+    - docker
+  services:
+    - name: sonarqube:10.3-community
+      alias: sonarqube
+  variables:
+    SONAR_HOST_URL: http://sonarqube:9000
+    SONAR_LOGIN: admin
+    SONAR_PASSWORD: admin
+  script:
+    - cd Tweetoscope/InitialTweetoscope
+    # Attendre que SonarQube soit prêt
+    - echo "Waiting for SonarQube to start..."
+    - for i in {1..30}; do curl -s http://sonarqube:9000/api/system/health && break || sleep 2; done
+    # Lancer l'analyse
+    - mvn verify sonar:sonar
+      -Dsonar.projectKey=tweetoscope
+      -Dsonar.projectName=Tweetoscope
+      -Dsonar.sources=src/main/java
+      -Dsonar.tests=src/test/java
+      -Dsonar.host.url=$SONAR_HOST_URL
+      -Dsonar.login=$SONAR_LOGIN
+      -Dsonar.password=$SONAR_PASSWORD
+  artifacts:
+    when: always
+    paths:
+      - Tweetoscope/InitialTweetoscope/target/sonar/
+    expire_in: 30 days
+  only:
+    - main
+    - master
+  allow_failure: true
+
 
 pages:
   stage: publish CR to Gitlab Pages
