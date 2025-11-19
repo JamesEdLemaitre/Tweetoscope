@@ -132,7 +132,7 @@ public class KafkaTweetFilter {
         }
     }
 
-    private Properties configureKafkaConsumer(); {
+    private Properties configureKafkaConsumer() {
         Properties consumerProperties = new Properties();
         String bootstrapServers = System.getenv("KAFKA_BOOTSTRAP_SERVERS");
         if (bootstrapServers == null || bootstrapServers.isEmpty()) {
