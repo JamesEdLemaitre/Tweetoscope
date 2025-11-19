@@ -38,21 +38,23 @@ sonarqube-scan:
     SONAR_PASSWORD: admin
   script:
     - cd Tweetoscope/InitialTweetoscope
-    # Attendre que SonarQube soit complètement prêt
+    # Attendre que SonarQube soit complètement prêt avec authentification
     - echo "Waiting for SonarQube to be ready..."
     - |
       for i in {1..60}; do
-        STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://sonarqube:9000/api/system/health 2>/dev/null)
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u admin:admin http://sonarqube:9000/api/system/health 2>/dev/null)
         if [ "$STATUS" = "200" ]; then
-          echo "SonarQube is ready!"
+          echo "SonarQube is ready! (HTTP 200)"
           break
         fi
         echo "Attempt $i/60: HTTP status $STATUS, waiting..."
         sleep 2
       done
     # Vérifier que SonarQube est vraiment UP
-    - sleep 10
-    - curl -s http://sonarqube:9000/api/system/health | grep -q '"status":"UP"' && echo "SonarQube is UP!" || (echo "SonarQube failed to start properly" && exit 1)
+    - sleep 5
+    - HEALTH=$(curl -s -u admin:admin http://sonarqube:9000/api/system/health)
+    - echo "Health check response: $HEALTH"
+    - echo "$HEALTH" | grep -q '"status":"UP"' && echo "✓ SonarQube is UP!" || (echo "✗ SonarQube failed to start properly" && echo "Response was: $HEALTH" && exit 1)
     # Lancer l'analyse
     - mvn clean verify sonar:sonar 
       -Dsonar.projectKey=tweetoscope
