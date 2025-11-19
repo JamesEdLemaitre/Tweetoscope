@@ -23,22 +23,6 @@ Le projet est composé de plusieurs microservices :
 - **Kubernetes** : Déploiement en cluster
 - **LaTeX** : Documentation
 
-## 🚀 Démarrage Rapide
-
-### Avec Docker Compose
-
-```bash
-cd Tweetoscope/InitialTweetoscope
-docker compose up -d
-```
-
-### Configuration des Filtres
-
-Vous pouvez filtrer les tweets selon :
-- **-f lang <code>** : Langue (ex: `en`, `fr`)
-- **-f country <code>** : Pays (code ISO)
-- **-f recent** : Tweets des dernières 24 heures
-- **-f online** : Connexion en direct à l'API Twitter
 
 ## 📚 Documentation
 
@@ -49,7 +33,3 @@ Le rapport complet du projet est disponible ici : **[CR.pdf](https://tweetoscope
 - James Lemaître
 - François Thievon
 - Louca Malerba
-
-## 📝 Licence
-
-Projet académique - 2025

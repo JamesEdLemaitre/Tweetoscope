@@ -482,6 +482,17 @@ Pour déployer en production sur le registre DockerHub :
 docker push fthievon/tweetoscope-kafka:latest
 \end{verbatim}
 
+\subsection{Interface Web du Leaderboard}
+
+Une fois Docker Compose démarré avec tous les services, le leaderboard est accessible localement à l'adresse \texttt{http://localhost:8080}. L'interface affiche en temps réel le classement des hashtags les plus populaires extraits des tweets filtrés.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth,height=0.60\textheight,keepaspectratio]{assets/leaderboard_localhost.png}
+\caption{Interface du Leaderboard affichée sur http://localhost:8080}
+\label{fig:leaderboard-localhost}
+\end{figure}
+
 \subsection{Avantages de la Conteneurisation}
 
 $\rightarrow$ \textbf{Portabilité} : L'image fonctionne sur tout environnement ayant Docker
@@ -1005,6 +1016,21 @@ Chaque push sur \texttt{main} ou \texttt{master} déclenche la pipeline complèt
     \item \textbf{JUnit-test-filter} : [PASSED] Passed (16 tests, 0 failures)
     \item \textbf{sonarqube-scan} : [PASSED] Passed (Analysis successful)
     \item \textbf{pages} : [PASSED] Passed (PDF generated and published)
+\end{itemize}
+
+\subsection{Vidéo de Démonstration}
+
+Une vidéo de démonstration complète de la pipeline CI/CD et de son exécution est disponible sur YouTube :
+
+\texttt{https://youtu.be/cujkKcnFI4U}
+
+Cette vidéo montre :
+\begin{itemize}
+    \item L'exécution complète de la pipeline GitLab CI/CD
+    \item Le stage 1 : Exécution des 16 tests JUnit
+    \item Le stage 2 : Analyse de la qualité du code avec SonarQube
+    \item Le stage 3 : Génération et publication du PDF sur GitLab Pages
+    \item Les résultats finaux et les logs détaillés
 \end{itemize}
 
 \end{document}
