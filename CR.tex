@@ -612,7 +612,7 @@ Kubernetes n’élimine pas complètement ces risques mais fournit des mécanism
 \textbf{Avec Kubernetes sur le cluster école (emptyDir)} : Kafka est reschedulé mais perd son état car le stockage est local.
 
 \textbf{Impact} :  
-1–2 minutes d’indisponibilité pour les services stateless, 2–3 minutes pour Kafka.  
+1 ou 2 minutes d’indisponibilité pour les services stateless, 2 ou 3 minutes pour Kafka.  
 Possibilité de perte de données avec \texttt{emptyDir}.
 
 \subsubsection{Scénario 3 : Crash du broker Kafka}
@@ -649,9 +649,7 @@ Bien que Kubernetes améliore significativement la tolérance aux pannes, il ne 
     \item \textbf{Risques de perte de données} : Kubernetes ne peut compenser une configuration Kafka incorrecte (ex. \texttt{acks=0}). Avec un broker unique, une panne disque entraînant une perte définitive est possible.
     \item \textbf{Duplication de messages} : pendant un redémarrage, un consommateur Kafka peut retraiter des messages si les offsets ne sont pas commit de manière transactionnelle.
     \item \textbf{Erreurs de configuration} : Kubernetes ne détecte pas les erreurs logiques (mauvais topics, mauvaise sérialisation).
-    \item \textbf{Points uniques de défaillance} : un seul broker Kafka et des microservices avec un seul replica créent des fentes lors des redémarrages. Une réplication (\texttt{replicas: 3}) et un cluster Kafka multi-brokers résoudraient cela.  
-
-    \\[0.3em]
+    \item \textbf{Points uniques de défaillance} : un seul broker Kafka et des microservices avec un seul replica créent des fentes lors des redémarrages. Une réplication (\texttt{replicas: 3}) et un cluster Kafka multi-brokers résoudraient cela.\\[0.3em]
     \textit{Note : lors des tests locaux, passer à plusieurs replicas ou plusieurs brokers Kafka surchargeait Docker, causant des crashs du daemon par saturation CPU/mémoire. Malgré cela, les scénarios de panne de nœud avec PVC ont été validés avec persistance intacte.}
     \item \textbf{Panne du control-plane} : sans un control-plane hautement disponible, aucun nouveau pod ne peut être programmé.
 \end{itemize}
