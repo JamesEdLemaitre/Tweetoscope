@@ -54,19 +54,19 @@ sonarqube-scan:
     - sleep 30
     - cd Tweetoscope/InitialTweetoscope
     - echo "Starting SonarQube analysis with Maven..."
-    - mvn clean verify sonar:sonar -Dsonar.projectKey=tweetoscope -Dsonar.projectName=Tweetoscope -Dsonar.sources=src/main/java -Dsonar.tests=src/test/java -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.password=$SONAR_PASSWORD -X 2>&1 | grep -i "analysis\|bug\|smell\|vulnerab\|duplicat\|coverage" || true
+    - mvn clean verify sonar:sonar -Dsonar.projectKey=tweetoscope -Dsonar.projectName=Tweetoscope -Dsonar.sources=src/main/java -Dsonar.tests=src/test/java -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_LOGIN -Dsonar.password=$SONAR_PASSWORD
     - echo ""
     - echo "========================================"
-    - echo "SonarQube Analysis Job Completed"
+    - echo "SonarQube Analysis Completed Successfully"
     - echo "========================================"
     - echo ""
-    - echo "Analysis Summary:"
+    - echo "Analysis performed on:"
     - echo "- Project Key: tweetoscope"
     - echo "- Source Code: src/main/java"
     - echo "- Tests: src/test/java"
     - echo ""
-    - echo "To view detailed metrics, check SonarQube logs above for 'ANALYSIS SUCCESSFUL' message"
-    - echo ""
+    - echo "Check the Maven logs above for ANALYSIS SUCCESSFUL message"
+    - echo "to view the complete results."
   artifacts:
     when: always
     paths:
