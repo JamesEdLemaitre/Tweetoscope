@@ -1,44 +1,47 @@
 \documentclass[10pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx}
+\usepackage{float}
 \author{James Lemaitre - François Thievon - Louca Malerba}
 \title{Tweetoscope}
 \begin{document}
 	\maketitle
 	
-\section{Secrets and Git}
+\section{Secrets et Git}
 
-When developping applications involving the access to a distant service using a private API key or credentials, it is crucial to not leak them in a public repository for example. 
+Lors du développement d'applications impliquant l'accès à un service distant via une clé API privée ou des identifiants, il est crucial de ne pas les divulguer dans un dépôt public par exemple.
 
-It can be particularly tricky since even deleting the credentials in later versions of the code will not avoid other people to checkout older commits and read these tokens. 
+Cela peut être particulièrement délicat car même la suppression des identifiants dans les versions ultérieures du code n'empêchera pas d'autres personnes de consulter les anciens commits et de lire ces jetons.
 
-Hackers might use these tokens for different reasons, including accessing a private API which cannot be accessed by them (some API access can be linked to an account and thus access private data. It can be the case for example with the Spotify API which allows you to access your private data through your API key), stealing paid credits, abusing the access until the key gets banned for too many requests for example.
+Les pirates informatiques peuvent utiliser ces jetons pour différentes raisons, notamment accéder à une API privée qui ne leur est pas accessible (certains accès API peuvent être liés à un compte et ainsi accéder à des données privées. Cela peut être le cas par exemple avec l'API Spotify qui permet d'accéder à vos données privées via votre clé API), voler des crédits payants, abuser de l'accès jusqu'à ce que la clé soit bannie pour trop de requêtes par exemple.
 
-Instead of writing the tokens inside of the code as a variable, it is a better practice to write them in a config.properties file and add this file to the .gitignore. 
+Au lieu d'écrire les jetons à l'intérieur du code comme une variable, il est préférable de les écrire dans un fichier \texttt{config.properties} et d'ajouter ce fichier au \texttt{.gitignore}.
 
-For professional projects, specialized tools like Azure Key Vault can be used. 
+Pour les projets professionnels, des outils spécialisés comme Azure Key Vault peuvent être utilisés.
 
-Other tools can allow developpers to scan the changes before comitting automatically, or to scan a repository to check if secrets are included within the code. 
+D'autres outils peuvent permettre aux développeurs de scanner les modifications avant de commiter automatiquement, ou de scanner un dépôt pour vérifier si des secrets sont inclus dans le code.
 
-\section{Implementing a new filter for recent twwets}
+\section{Implémentation d'un nouveau filtre pour les tweets récents}
 
-To implement a new filter which will only select recent tweets (e.g. tweets that are less than 24 hours old), we mimic the way the LangTweetFilter class was implemented. 
+Pour implémenter un nouveau filtre qui ne sélectionnera que les tweets récents (par exemple, les tweets datant de moins de 24 heures), nous imitons la façon dont la classe \texttt{LangTweetFilter} a été implémentée.
 
-First, we add the valid option "-f recent" to make it possible to select this kind of filtering using parameters. 
+Tout d'abord, nous ajoutons l'option valide \texttt{"-f recent"} pour permettre de sélectionner ce type de filtrage via des paramètres.
 
-We made a correction in the given code for TweetoscopeApp: 
+Nous avons apporté une correction dans le code fourni pour \texttt{TweetoscopeApp} :
 
-if (cmd.hasOption(filteringStrategy)) {
+\texttt{if (cmd.hasOption(filteringStrategy))} 
 
-became
+est devenu
 
-if (cmd.hasOption(filteringStrategyOption)) {\\\\
+\texttt{if (cmd.hasOption(filteringStrategyOption))}
 
-Testing the filtering strategy:
+\subsection*{Test de la stratégie de filtrage}
 
-To test the filtering strategy, we modified some lines in miniTestBase.txt so that the date was close enough to the current date. Starting the app resulted in a functionning dashboard with the recent tweets accepted. 
+Pour tester la stratégie de filtrage, nous avons modifié quelques lignes dans \texttt{miniTestBase.txt} afin que la date soit suffisamment proche de la date actuelle. Le lancement de l'application a abouti à un tableau de bord fonctionnel avec les tweets récents acceptés.
 
-\includegraphics[scale=1]{assets/recentfilterproof.png} 
+\begin{center}
+\includegraphics[scale=0.5]{assets/recentfilterproof.png} 
+\end{center}
 
 \section{Architectural Choices}
 
@@ -97,33 +100,34 @@ leaderboard & 1 & null & Round-robin (par défaut) \\
 \textbf{Note importante :} Lorsque la clé est \texttt{null}, Kafka utilise une stratégie round-robin pour distribuer les messages équitablement entre les partitions disponibles. Dans notre cas avec 1 partition, tous les messages vont naturellement à cette unique partition.
 
 
-\section{Risk Analysis / Initial Risk Analysis}
+\section{Analyse des risques / Analyse initiale des risques}
 
-\underline{Impact of failure for Tweet Producer}:
+\underline{Impact d'une défaillance du Tweet Producer} :
 
-New tweets are not received anymore by the application
+Les nouveaux tweets ne sont plus reçus par l'application.
 
-There won't be a crash, and restoring this element will result in the application working again normally.
+Il n'y aura pas de crash, et la restauration de cet élément permettra à l'application de fonctionner à nouveau normalement.
 
-\underline{Impact of failure for Tweet Filter}:
+\underline{Impact d'une défaillance du Tweet Filter} :
 
-Raw tweets are not filtered and transmitted to the next components. Messages will accumulate in the raw-tweets topic. Restoring this element will result in the filtering of all raw tweets without any loss of information.
+Les tweets bruts ne sont pas filtrés et transmis aux composants suivants. Les messages s'accumuleront dans le topic \texttt{raw-tweets}. La restauration de cet élément entraînera le filtrage de tous les tweets bruts sans aucune perte d'information.
 
-\underline{Impact of failure for Hashtag Extractor}:
+\underline{Impact d'une défaillance du Hashtag Extractor} :
 
-Hashtags are not extracted anymore from the tweets. Filtered tweets will accumulate in the filtered-tweets topic. Restoring this element will result in the extraction of the filtered tweets hashtags without any loss of information.
+Les hashtags ne sont plus extraits des tweets. Les tweets filtrés s'accumuleront dans le topic \texttt{filtered-tweets}. La restauration de cet élément entraînera l'extraction des hashtags des tweets filtrés sans aucune perte d'information.
 
-\underline{Impact of failure for Hashtag Counter}:
+\underline{Impact d'une défaillance du Hashtag Counter} :
 
-Hashtags are not counted anymore. Without any additional measure, restoring this element may result in errors in the results: the memory of the amount of past appearance of each hashtags will be lost and reset to $0$. 
+Les hashtags ne sont plus comptabilisés. Sans mesure supplémentaire, la restauration de cet élément peut entraîner des erreurs dans les résultats : la mémoire du nombre d'apparitions passées de chaque hashtag sera perdue et réinitialisée à $0$.
 
-\underline{Impact of failure for Visualizor}:
+\underline{Impact d'une défaillance du Visualizor} :
 
-It is not possible to see the results anymore. Restoring this element will allow to show the results again, without any error in the data shown. 
+Il n'est plus possible de voir les résultats. La restauration de cet élément permettra d'afficher à nouveau les résultats, sans aucune erreur dans les données affichées.
 
-\underline{Impact of failure of a Broker}:
+\underline{Impact d'une défaillance d'un Broker} :
 
-Failure of a broker will not be a problem if it is replicated. 
+La défaillance d'un broker ne sera pas un problème s'il est répliqué.
+
 
 
 \section{Task 9}
@@ -148,38 +152,57 @@ java -jar target/KafkaTweetProducer-jar-with-dependencies.jar
 
 Avant de lancer les composants, le serveur Kafka doit être démarré :
 
-Génération d'un UUID pour le cluster:
+\textbf{Génération d'un UUID pour le cluster :}
 
-% KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
+\begin{verbatim}
+KAFKA_CLUSTER_ID="$($KAFKA_HOME/bin/kafka-storage.sh random-uuid)"
+\end{verbatim}
 
-Formatage du storage :
+\textbf{Formatage du storage :}
 
-%$KAFKA_HOME/bin/kafka-storage.sh format --standalone -t $KAFKA_CLUSTER_ID -c $KAFKA_HOME/config/server.properties
+\begin{verbatim}
+$KAFKA_HOME/bin/kafka-storage.sh format --standalone -t $KAFKA_CLUSTER_ID \
+  -c $KAFKA_HOME/config/server.properties
+\end{verbatim}
 
-Démarrage du serveur Kafka :
+\textbf{Démarrage du serveur Kafka :}
 
-% $KAFKA_HOME/bin/kafka-server-start.sh $KAFKA_HOME/config/server.properties
-
+\begin{verbatim}
+$KAFKA_HOME/bin/kafka-server-start.sh $KAFKA_HOME/config/server.properties
+\end{verbatim}
 
 \subsection{Création des topics}
 
 Les topics nécessaires doivent être créés avant le lancement des composants :
 
-Topic pour les tweets bruts:
+\textbf{Topic pour les tweets bruts :}
 
-% $KAFKA_HOME/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic raw-tweets
+\begin{verbatim}
+$KAFKA_HOME/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 \
+  --replication-factor 1 --partitions 1 --topic raw-tweets
+\end{verbatim}
 
-Topic pour les tweets filtrés:
+\textbf{Topic pour les tweets filtrés :}
 
-% $KAFKA_HOME/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic filtered-tweets
+\begin{verbatim}
+$KAFKA_HOME/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 \
+  --replication-factor 1 --partitions 1 --topic filtered-tweets
+\end{verbatim}
 
-Topic pour les hashtags extraits:
+\textbf{Topic pour les hashtags extraits :}
 
-% $KAFKA_HOME/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic hashtags
+\begin{verbatim}
+$KAFKA_HOME/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 \
+  --replication-factor 1 --partitions 1 --topic hashtags
+\end{verbatim}
 
-Topic pour le leaderboard
+\textbf{Topic pour le leaderboard :}
 
-% $KAFKA_HOME/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic leaderboard
+\begin{verbatim}
+$KAFKA_HOME/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 \
+  --replication-factor 1 --partitions 1 --topic leaderboard
+\end{verbatim}
+
 
 \subsection{Lancement des composants}
 
@@ -252,15 +275,36 @@ java -jar target/KafkaLeaderboard-jar-with-dependencies.jar
 
 \subsection{Tests et vérifications}
 
-À chaque étape d'implémentation, il est possible de vérifier que la chaîne fonctionne, grâce à un consommateur dans le terminal:
+À chaque étape d'implémentation, il est possible de vérifier que la chaîne fonctionne, grâce à un consommateur dans le terminal :
 
-% $KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic raw-tweets --from-beginning
+\textbf{Vérification du topic des tweets bruts :}
 
-% $KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic filtered-tweets --from-beginning
+\begin{verbatim}
+$KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
+  --topic raw-tweets --from-beginning
+\end{verbatim}
 
-% $KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic hashtags --from-beginning
+\textbf{Vérification du topic des tweets filtrés :}
 
-% $KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic leaderboard --from-beginning
+\begin{verbatim}
+$KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
+  --topic filtered-tweets --from-beginning
+\end{verbatim}
+
+\textbf{Vérification du topic des hashtags :}
+
+\begin{verbatim}
+$KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
+  --topic hashtags --from-beginning
+\end{verbatim}
+
+\textbf{Vérification du topic du leaderboard :}
+
+\begin{verbatim}
+$KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
+  --topic leaderboard --from-beginning
+\end{verbatim}
+
 
 \textbf{IMPORTANT}
 
@@ -270,25 +314,43 @@ Important : Avant de lancer les tests avec des fichiers enregistrés, vérifier 
 
 Les captures d'écran suivantes démontrent le bon fonctionnement de la chaîne de traitement :
 
-Extraction des hashtags : 
+\subsubsection*{Extraction des hashtags}
 
-\includegraphics[scale=1]{assets/hashtagsproof.png} 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth,height=0.80\textheight,keepaspectratio]{assets/hashtagsproof.png}
+\end{figure}
 
+\clearpage
 
-Publication du leaderboard :
+\subsubsection*{Publication du leaderboard}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth,height=0.80\textheight,keepaspectratio]{assets/leaderboardtopicproof.png}
+\end{figure}
 
-\includegraphics[scale=1]{assets/leaderboardtopicproof.png} 
+\clearpage
 
+\subsubsection*{Affichage du leaderboard avec le filtre 'recent'}
 
-Affichage du leaderboard avec le filtre 'recent':
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth,height=0.80\textheight,keepaspectratio]{assets/recentfilterproof.png}
+\end{figure}
 
+\clearpage
 
-\includegraphics[scale=1]{assets/recentfilterproof.png} 
+\subsubsection*{Génération aléatoire}
 
-Génération aléatoire:
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth,height=0.80\textheight,keepaspectratio]{assets/randomproof.png}
+\end{figure}
 
-\includegraphics[scale=1]{assets/randomproof.png} 
+\clearpage
+
+ 
 
 
 \section{Vérification expérimentale de l'analyse des risques}
