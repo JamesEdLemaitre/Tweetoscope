@@ -848,7 +848,7 @@ Bien que Kubernetes améliore significativement la tolérance aux pannes, il ne 
     \item \textbf{Risques de perte de données} : Kubernetes ne peut compenser une configuration Kafka incorrecte (ex. \texttt{acks=0}). Avec un broker unique, une panne disque entraînant une perte définitive est possible.
     \item \textbf{Duplication de messages} : pendant un redémarrage, un consommateur Kafka peut retraiter des messages si les offsets ne sont pas commit de manière transactionnelle.
     \item \textbf{Erreurs de configuration} : Kubernetes ne détecte pas les erreurs logiques (mauvais topics, mauvaise sérialisation).
-    \item \textbf{Points uniques de défaillance} : un seul broker Kafka et des microservices avec un seul replica créent des fentes lors des redémarrages. Une réplication (\texttt{replicas: 3}) et un cluster Kafka multi-brokers résoudraient cela.\\[0.3em]
+    \item \textbf{Points uniques de défaillance} : un seul broker Kafka et des microservices avec un seul replica créent des fenêtres d'indisponibilité lors des redémarrages. Un déploiement sur cluster multi-nœuds avec 3 brokers Kafka répartis sur 3 noeuds distincts (permettant (\texttt{replication-factor: 3})) et plusieurs replicas de microservices distribués via des contraintes d'anti-affinité résoudrait cela.\\[0.3em]
     \textit{Note : lors des tests locaux, passer à plusieurs replicas ou plusieurs brokers Kafka surchargeait Docker, causant des crashs du daemon par saturation CPU/mémoire. Malgré cela, les scénarios de panne de nœud avec PVC ont été validés avec persistance intacte.}
     \item \textbf{Panne du control-plane} : sans un control-plane hautement disponible, aucun nouveau pod ne peut être programmé.
 \end{itemize}
