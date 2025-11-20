@@ -1,4 +1,4 @@
-\documentclass[10pt,a4paper]{article}
+﻿\documentclass[10pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx}
 \usepackage{float}
@@ -472,7 +472,7 @@ La deuxième étape utilise l'image légère \texttt{eclipse-temurin:11-jre-alpi
 Pour construire l'image Docker localement (depuis le répertoire contenant le Dockerfile) :
 
 \begin{verbatim}
-docker build -t tweetoscope-kafka .
+docker build -t fthievon/tweetoscope-kafka:latest .
 \end{verbatim}
 
 \textbf{Résultat :} Une image \texttt{tweetoscope-kafka:latest} prête à être utilisée, contenant tous les services Kafka packagés.
@@ -887,7 +887,6 @@ Le job \texttt{pages} effectue les opérations suivantes :
 
 \begin{verbatim}
 pdflatex -interaction=nonstopmode CR.tex
-pdflatex -interaction=nonstopmode CR.tex
 mv CR.pdf public/
 \end{verbatim}
 
@@ -933,35 +932,44 @@ Implémenter une suite de tests unitaires complète pour valider le fonctionneme
 
 \subsection{Structure des Tests}
 
-La classe de test \texttt{KafkaTweetFilterTest.java} contient 7 tests couvrant les scénarios principaux :
+Le job exécute la suite \texttt{KafkaTweetFilterTest} contenant 16 tests :
 
-\subsubsection{Test 1: testEmptyTweetFilterAcceptsAllTweets}
+\textbf{Tests sur EmptyTweetFilter (accepte tous les tweets) :}
+\begin{enumerate}
+    \item \texttt{testEmptyTweetFilterAcceptsAllTweets} : Valide que le filtre vide accepte un tweet quelconque
+\end{enumerate}
 
-Valide que le filtre "empty" accepte tous les tweets reçus sans en rejeter aucun. C'est un filtre pass-through qui ne modifie pas les données.
+\textbf{Tests sur LangTweetFilter (filtre par langue) :}
+\begin{enumerate}
+    \setcounter{enumi}{1}
+    \item \texttt{testLangTweetFilterAcceptsEnglish} : Vérifie que les tweets en anglais (lang='en') sont acceptés
+    \item \texttt{testLangTweetFilterRejectsFrench} : Vérifie que les tweets en français (lang='fr') sont rejetés avec un filtre anglais
+    \item \texttt{testLangTweetFilterWithNullLanguage} : Détecte le cas où la langue est NULL (révèle un bug potentiel dans LangTweetFilter)
+\end{enumerate}
 
-\subsubsection{Test 2: testLangTweetFilterAcceptsEnglish}
+\textbf{Tests sur RecentTweetFilter (filtre par date) :}
+\begin{enumerate}
+    \setcounter{enumi}{4}
+    \item \texttt{testRecentTweetFilterAcceptsRecentTweets} : Accepte les tweets des dernières 24 heures
+    \item \texttt{testRecentTweetFilterRejectsOldTweets} : Rejette les tweets de plus de 24 heures
+    \item \texttt{testRecentTweetFilterWithNullCreatedAt} : Gère correctement les cas avec date NULL
+\end{enumerate}
 
-Vérifie que le filtre "language" accepte les tweets dont le champ \texttt{lang} est défini à \texttt{"en"} (anglais).
+\textbf{Tests sur la sérialisation Gson :}
+\begin{enumerate}
+    \setcounter{enumi}{7}
+    \item \texttt{testGsonSerializationDeserialization} : Valide la sérialisation/désérialisation JSON
+    \item \texttt{testNullTweetHandling} : Traite les cas d'erreur (JSON invalide)
+    \item \texttt{testInvalidJsonDeserialization} : Détecte les JSON malformés et lève une exception
+    \item \texttt{testJsonWithMissingFields} : Traite les tweets avec champs manquants
+    \item \texttt{testTweetWithSpecialCharacters} : Accepte les caractères spéciaux (emoji, CJK, cyrillique)
+    \item \texttt{testTweetWithEmptyText} : Gère les tweets avec texte vide
+    \item \texttt{testMultipleFiltersInSequence} : Valide qu'un tweet passe plusieurs filtres
+    \item \texttt{testTweetFailsMultipleFilters} : Valide qu'un tweet peut échouer plusieurs filtres
+    \item \texttt{testGsonWithWhitespaceAndLineBreaks} : Préserve les espaces et retours à la ligne
+\end{enumerate}
 
-\subsubsection{Test 3: testLangTweetFilterRejectsFrench}
-
-Valide que le filtre "language" rejette les tweets en français (\texttt{lang = "fr"}).
-
-\subsubsection{Test 4: testRecentTweetFilterAcceptsRecentTweets}
-
-Teste que le filtre "recent" accepte les tweets créés depuis moins de 24 heures (en comparant le timestamp avec l'heure actuelle).
-
-\subsubsection{Test 5: testRecentTweetFilterRejectsOldTweets}
-
-Valide que le filtre "recent" rejette les tweets créés depuis plus de 24 heures.
-
-\subsubsection{Test 6: testGsonSerializationDeserialization}
-
-Vérifie que la sérialisation/désérialisation JSON avec Gson fonctionne correctement pour les tweets (l'objet Tweet peut être converti en JSON et reconverti sans perte de données).
-
-\subsubsection{Test 7: testNullTweetHandling}
-
-Teste le traitement des cas limites : que se passe-t-il quand on essaie de déserialiser une chaîne JSON vide ou invalide. Le test vérifie que le résultat est \texttt{null}.
+\textbf{Résultat :} \textbf{16 tests passent avec 0 erreur, 0 failure}.
 
 \subsection{Dépendances et Configuration Maven}
 
@@ -1010,97 +1018,17 @@ mvn clean test -Dtest=KafkaTweetFilterTest -X
 
 \subsection{Résultats et Validations}
 
-\begin{itemize}
-    \item \textbf{7 tests implémentés} : Couverture complète des filtres (empty, language, recent)
-    \item \textbf{Tests JUnit 5} : Utilisation du framework JUnit 5 moderne avec annotations \texttt{@Test}, \texttt{@BeforeEach}, etc.
-    \item \textbf{Tous les tests passent} : Validation confirme le fonctionnement correct de KafkaTweetFilter
-    \item \textbf{Rapports d'exécution} : Artefacts de test générés dans \texttt{target/surefire-reports/}
-    \item \textbf{Correction de test} : Le test \texttt{testNullTweetHandling} a été ajusté pour assigner le résultat à \texttt{null} au lieu d'attendre une exception
-\end{itemize}
+\section{Task 15 : Intégrer le build des images Docker dans la Pipeline CI/CD et les publier sur Git container registery}
 
-\subsection{Travaux Effectués}
+Malhereusement nous n'avons pas réussi à intégrer cette étape à notre pipeline CI/CD GitLab, nous avons rencontrés quelques problèmes de compatibilité avec Kubernetes et avons décidé de rester avec des images hébergées sur DockerHub
+Si l'on modifie les fichiers java, il faut recréer l'image docker et la pousser sur DockerHub manuellement avec les commandes suivantes :
+\begin{verbatim}
+docker build -t fthievon/tweetoscope-kafka:latest .
+docker push fthievon/tweetoscope-kafka:latest
+\end{verbatim}
 
-\begin{itemize}
-    \item \textbf{Création de KafkaTweetFilterTest.java} : Implémentation de la suite de tests complète
-    \item \textbf{Ajout des dépendances JUnit 5} : Configuration de pom.xml avec les dépendances appropriées
-    \item \textbf{Configuration du plugin Surefire} : Mise en place de l'exécution automatique des tests Maven
-    \item \textbf{Intégration dans la pipeline} : Ajout du job \texttt{test-filter} dans .gitlab-ci.yml
-    \item \textbf{Débogage et correction} : Résolution des problèmes de dépendances manquantes et ajustement de la logique de test
-    \item \textbf{Validation end-to-end} : Vérification que les tests passent dans l'environnement CI GitLab
-\end{itemize}
+\section{Task 16 : Intégrer un process pour check la qualité du code avec SonarQube dans la pipeline CI/CD GitLab}
 
-\section{Pipeline CI/CD GitLab}
-
-\subsection{Vue d'ensemble de la Pipeline}
-
-Une pipeline CI/CD (Continuous Integration / Continuous Deployment) a été mise en place dans le fichier \texttt{.gitlab-ci.yml} pour automatiser :
-
-\begin{itemize}
-    \item L'exécution des tests unitaires JUnit
-    \item L'analyse de la qualité du code avec SonarQube
-    \item La génération et publication de la documentation PDF
-\end{itemize}
-
-La pipeline s'exécute automatiquement à chaque push sur les branches \texttt{main} ou \texttt{master}.
-
-\subsection{Stage 1: Test JUnit}
-
-\subsubsection{Job: JUnit-test-filter}
-
-\textbf{Objectif :} Exécuter les tests unitaires pour valider la qualité et la correctness du code.
-
-\textbf{Configuration :}
-
-\begin{itemize}
-    \item \textbf{Image Docker} : \texttt{maven:3.9-eclipse-temurin-11}
-    \item \textbf{Commande} : \texttt{mvn clean test -Dtest=KafkaTweetFilterTest -X}
-    \item \textbf{Artifacts} : Rapports de test JUnit en format XML
-\end{itemize}
-
-\subsubsection{Détail des 16 Tests Exécutés}
-
-Le job exécute la suite \texttt{KafkaTweetFilterTest} contenant 16 tests :
-
-\textbf{Tests sur EmptyTweetFilter (accepte tous les tweets) :}
-\begin{enumerate}
-    \item \texttt{testEmptyTweetFilterAcceptsAllTweets} : Valide que le filtre vide accepte un tweet quelconque
-\end{enumerate}
-
-\textbf{Tests sur LangTweetFilter (filtre par langue) :}
-\begin{enumerate}
-    \setcounter{enumi}{1}
-    \item \texttt{testLangTweetFilterAcceptsEnglish} : Vérifie que les tweets en anglais (lang='en') sont acceptés
-    \item \texttt{testLangTweetFilterRejectsFrench} : Vérifie que les tweets en français (lang='fr') sont rejetés avec un filtre anglais
-    \item \texttt{testLangTweetFilterWithNullLanguage} : Détecte le cas où la langue est NULL (révèle un bug potentiel dans LangTweetFilter)
-\end{enumerate}
-
-\textbf{Tests sur RecentTweetFilter (filtre par date) :}
-\begin{enumerate}
-    \setcounter{enumi}{4}
-    \item \texttt{testRecentTweetFilterAcceptsRecentTweets} : Accepte les tweets des dernières 24 heures
-    \item \texttt{testRecentTweetFilterRejectsOldTweets} : Rejette les tweets de plus de 24 heures
-    \item \texttt{testRecentTweetFilterWithNullCreatedAt} : Gère correctement les cas avec date NULL
-\end{enumerate}
-
-\textbf{Tests sur la sérialisation Gson :}
-\begin{enumerate}
-    \setcounter{enumi}{7}
-    \item \texttt{testGsonSerializationDeserialization} : Valide la sérialisation/désérialisation JSON
-    \item \texttt{testNullTweetHandling} : Traite les cas d'erreur (JSON invalide)
-    \item \texttt{testInvalidJsonDeserialization} : Détecte les JSON malformés et lève une exception
-    \item \texttt{testJsonWithMissingFields} : Traite les tweets avec champs manquants
-    \item \texttt{testTweetWithSpecialCharacters} : Accepte les caractères spéciaux (emoji, CJK, cyrillique)
-    \item \texttt{testTweetWithEmptyText} : Gère les tweets avec texte vide
-    \item \texttt{testMultipleFiltersInSequence} : Valide qu'un tweet passe plusieurs filtres
-    \item \texttt{testTweetFailsMultipleFilters} : Valide qu'un tweet peut échouer plusieurs filtres
-    \item \texttt{testGsonWithWhitespaceAndLineBreaks} : Préserve les espaces et retours à la ligne
-\end{enumerate}
-
-\textbf{Résultat :} \textbf{16 tests passent avec 0 erreur, 0 failure}.
-
-\subsection{Stage 2: Quality Analysis}
-
-\subsubsection{Job: sonarqube-scan}
 
 \textbf{Objectif :} Analyser la qualité du code source avec SonarQube Community Edition.
 
@@ -1119,7 +1047,6 @@ Le job exécute la suite \texttt{KafkaTweetFilterTest} contenant 16 tests :
     \item \textbf{Pause d'initialisation} : 30 secondes supplémentaires pour la stabilisation complète
     \item \textbf{Compilation et test} : \texttt{mvn clean verify} compile le projet et exécute les tests
     \item \textbf{Analyse SonarQube} : \texttt{sonar:sonar} lance le scanner et envoie les résultats à SonarQube
-    \item \textbf{Durée totale} : Environ 1 minute 13 secondes
 \end{enumerate}
 
 \subsubsection{Métriques Analysées par SonarQube}
@@ -1142,7 +1069,6 @@ SonarQube analyse les aspects suivants :
     \item 100\% des fichiers analysés avec succès
     \item CPD (Copy-Paste Detector) : 6 fichiers sans blocs copiés, 20 fichiers analysés pour duplication
     \item Rapport d'analyse généré : 358.9 kB, compressé à 125.7 kB
-    \item Temps d'analyse : 22.071 secondes
 \end{itemize}
 
 \subsubsection{Visualiser les Résultats SonarQube}
@@ -1166,100 +1092,8 @@ http://sonarqube:9000/dashboard?id=tweetoscope
     \item Cherchez la section ``ANALYSIS SUCCESSFUL'' pour les métriques
 \end{enumerate}
 
-\subsection{Stage 3: Publish CR to GitLab Pages}
 
-\subsubsection{Job: pages}
-
-\textbf{Objectif :} Générer le rapport en format PDF et le publier sur GitLab Pages.
-
-\textbf{Configuration :}
-
-\begin{itemize}
-    \item \textbf{Image Docker} : \texttt{texlive/texlive:latest} (environnement LaTeX complet)
-    \item \textbf{Fichier source} : \texttt{CR.tex}
-    \item \textbf{Processus} : Compilation LaTeX en PDF
-\end{itemize}
-
-\textbf{Commandes exécutées :}
-
-\begin{enumerate}
-    \item Création du dossier \texttt{public/} (requis par GitLab Pages)
-    \item Exécution de \texttt{pdflatex} \textbf{deux fois} pour finialiser les références croisées :
-    
-    \begin{verbatim}
-pdflatex -interaction=nonstopmode -output-directory=public CR.tex
-pdflatex -interaction=nonstopmode -output-directory=public CR.tex
-    \end{verbatim}
-    
-    \item Génération du PDF final à \texttt{public/CR.pdf}
-\end{enumerate}
-
-\textbf{Publication :} Le contenu du dossier \texttt{public/} est automatiquement publié sur GitLab Pages, rendant le PDF accessible via une URL publique.
-
-\textbf{URL du rapport :} \texttt{https://[project-url]/pages/CR.pdf}
-
-\subsubsection{Dépendances LaTeX}
-
-Le document utilise les packages suivants :
-
-\begin{itemize}
-    \item \texttt{inputenc} : Support de l'UTF-8 et des caractères accentués
-    \item \texttt{graphicx} : Insertion d'images (assets/diagram.png, assets/recentfilterproof.png)
-    \item \texttt{float} : Contrôle du positionnement des figures
-\end{itemize}
-
-\subsection{Configuration du Fichier .gitlab-ci.yml}
-
-\textbf{Structure générale :}
-
-\begin{verbatim}
-stages:
-  - test JUnit
-  - quality
-  - publish CR to Gitlab Pages
-
-JUnit-test-filter:
-  stage: test JUnit
-  ...
-
-sonarqube-scan:
-  stage: quality
-  ...
-
-pages:
-  stage: publish CR to Gitlab Pages
-  ...
-\end{verbatim}
-
-\textbf{Variables d'environnement pour SonarQube :}
-
-\begin{itemize}
-    \item \texttt{SONAR\_HOST\_URL} : \texttt{http://sonarqube:9000}
-    \item \texttt{SONAR\_LOGIN} : \texttt{admin}
-    \item \texttt{SONAR\_PASSWORD} : \texttt{admin}
-\end{itemize}
-
-\subsection{Exécution et Résultats}
-
-Chaque push sur \texttt{main} ou \texttt{master} déclenche la pipeline complète :
-
-\begin{itemize}
-    \item \textbf{Étape 1} : Tests JUnit exécutés (~30 secondes)
-    \item \textbf{Étape 2} : Analyse SonarQube (~1 minute 13 secondes)
-    \item \textbf{Étape 3} : Génération PDF et publication (~30 secondes)
-\end{itemize}
-
-\textbf{Durée totale :} Environ 2 minutes 15 secondes par exécution complète.
-
-\textbf{Status des jobs :}
-
-\begin{itemize}
-    \item \textbf{JUnit-test-filter} : [PASSED] Passed (16 tests, 0 failures)
-    \item \textbf{sonarqube-scan} : [PASSED] Passed (Analysis successful)
-    \item \textbf{pages} : [PASSED] Passed (PDF generated and published)
-\end{itemize}
-
-\subsection{Vidéo de Démonstration}
+\section{Task 17 : Vidéo de démonstration de la solution complète et conclusion}
 
 Une vidéo de démonstration complète de la pipeline CI/CD et de son exécution est disponible sur YouTube :
 
@@ -1274,9 +1108,22 @@ Cette vidéo montre :
     \item Les résultats finaux et les logs détaillés
 \end{itemize}
 
+La vidéo de démonstration de notre solution est disponible en suivant ce lien :
 
-La vidéo de démonstration de notre solution est disponible à l’adresse suivante : \texttt{https://youtu.be/XX0UafjEJZw} . 
-La vidéo montre que même après la suppression volontaire de plusieurs pods, Kubernetes relance automatiquement les services et l’application continue de fonctionner normalement.
+\texttt{https://youtu.be/XX0UafjEJZw}
+
+Cette vidéo montre que même après la suppression volontaire de plusieurs pods, Kubernetes relance automatiquement les services et l’application continue de fonctionner normalement.
 
 \end{document}
-         
+
+\section{Conclusion}
+
+La réalisation de ce projet nous a permis d’explorer de manière concrète un ensemble de technologies modernes utilisées dans les architectures distribuées. Nous avons appris à concevoir une pipeline orientée événements avec Kafka, à conteneuriser des services, à orchestrer leur déploiement via Kubernetes et à mettre en place un pipeline CI/CD complet sur GitLab. Plus globalement, nous avons développé une compréhension approfondie des problématiques de tolérance aux pannes, de scalabilité, de découplage entre composants et de livraison continue.
+
+La partie la plus difficile du projet a été la transition depuis l’application Java monolithique vers une architecture distribuée reposant sur Kafka. Il a fallu repenser complètement les interactions entre les éléments du pipeline, définir des schémas de messages, gérer les offsets et comprendre les comportements réels d’un système asynchrone. Le déploiement sur Kubernetes a également représenté un défi : la configuration des services, la gestion des pods et l’observation du comportement du système face aux pannes nécessitent un certain temps d’apprentissage et beaucoup d’expérimentations.
+
+Concernant l’usage d’outils d’IA, nous en avons effectivement utilisé plusieurs, principalement ChatGPT et GitHub Copilot. Nous les avons sollicités pour différentes catégories de tâches : aide à la rédaction du rapport (clarification de sections, reformulation), assistance pour comprendre certains concepts (fonctionnement des partitions Kafka, configuration des consumers), génération de squelettes de fichiers YAML ou Dockerfile, et aide ponctuelle pour corriger des erreurs de configuration ou de code.
+Ces outils se sont révélés précieux, mais pas toujours directement applicables. L’IA nous a permis de gagner du temps sur des tâches que nous savions réaliser mais qui demandaient beaucoup de recherches (par exemple la syntaxe précise des manifests Kubernetes). Elle nous a aussi appris certains aspects techniques que nous maîtrisions peu, notamment sur les subtilités du comportement des consumers Kafka ou sur les bonnes pratiques de CI/CD.
+Obtenir une réponse exploitable demandait parfois plusieurs itérations, notamment pour les fichiers de configuration complexes. Quelques tentatives ont été abandonnées lorsque les propositions n’étaient pas adaptées à notre contexte précis, ce qui nous a obligés à revenir à la documentation officielle, confirmant que l’IA doit être utilisée comme un outil d’aide, mais jamais comme une source unique de vérité.
+
+En définitive, ce projet nous a apporté une expérience complète, mêlant conception logicielle, technologies cloud-native, automatisation et documentation. L’usage d’outils d’IA a été un support utile, mais la compréhension du système et la résolution des problèmes ont reposé avant tout sur notre propre travail d’analyse, d’expérimentation et d’intégration.
