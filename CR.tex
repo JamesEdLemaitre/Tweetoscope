@@ -419,7 +419,7 @@ $\rightarrow$ Tous les composants génèrent des erreurs de connexion et l'appli
 
 \subsection{Avantages de la Conteneurisation avec Docker}
 
-Docker révolutionne le déploiement d'applications en résolvant le problème « ça marche sur ma machine ». Voici les avantages clés :
+Docker révolutionne le déploiement d'applications en résolvant le problème ``ça marche sur ma machine''. Voici les avantages clés :
 
 \begin{itemize}
     \item \textbf{Exécutabilité universelle} : Une fois packagée en image Docker, l'application fonctionne \textbf{partout} — sur un laptop en développement, un serveur de test, ou en production — sans modification du code
@@ -432,7 +432,7 @@ Docker révolutionne le déploiement d'applications en résolvant le problème �
     
     \item \textbf{Scalabilité instantanée} : Créer 5 copies identiques d'un service n'est qu'une commande Docker Compose
     
-    \item \textbf{Reproductibilité} : Les versions exactes de tous les outils (Maven, JRE, Kafka) sont figées. Aucun risque de « version différente qui casse tout »
+    \item \textbf{Reproductibilité} : Les versions exactes de tous les outils (Maven, JRE, Kafka) sont figées. Aucun risque de ``version différente qui casse tout''
     
     \item \textbf{Portabilité entre environnements} : Le même conteneur s'exécute sur macOS, Linux, Windows, ou cloud (AWS, Azure, Google Cloud)
 \end{itemize}
@@ -449,7 +449,7 @@ Cette première étape utilise l'image \texttt{maven:3.9-eclipse-temurin-11} con
     \item Cloner/copier le code source du projet Tweetoscope
     \item Compiler le code Java avec Maven
     \item Générer les fichiers \texttt{.jar} de tous les microservices (KafkaTweetProducer, KafkaTweetFilter, KafkaHashtagExtractor, KafkaHashtagCounter, KafkaLeaderboard)
-    \item Créer les JARs « fat-jar » (avec toutes les dépendances incluses) dans \texttt{target/}
+    \item Créer les JARs ``fat-jar'' (avec toutes les dépendances incluses) dans \texttt{target/}
 \end{itemize}
 
 \subsubsection{Stage 2 : Runtime (Exécution)}
@@ -582,7 +582,7 @@ Notre \texttt{docker-compose.yml} orchestre \textbf{7 conteneurs} lancés en cas
         \item \textbf{Rôle} : Consomme \texttt{hashtags}, agrège les comptages, produit dans \texttt{leaderboards}
         \item \textbf{Commande} : \texttt{java -cp /app/jars/* tweetoscope.kafka.KafkaHashtagCounter}
         \item \textbf{Fonctionnement} : Maintient un état en mémoire du comptage, publie le classement complet toutes les 1-2 secondes
-        \item \textbf{Output} : JSON avec top hashtags : \texttt{\{"#fun":5347,"#CS":4438,"#Metz":4368\}}
+        \item \textbf{Output} : JSON avec top hashtags : \texttt{\texttt{\{"fun":5347,"CS":4438,"Metz":4368\}}}
         \item \textbf{Consumer Group} : \texttt{myOwnPrivateJavaGroup}
         \item \textbf{Status} : Healthy (26.1s)
     \end{itemize}
@@ -674,7 +674,7 @@ Pour mettre en place Tweetoscope, il fallait :
     \item Cloner le projet, compiler avec Maven
     \item Manuellement démarrer Kafka, puis chaque microservice
     \item Configurer les variables d'environnement, les ports, les topics
-    \item Déboguer les problèmes de « dépendance manquante » ou « version incompatible »
+    \item Déboguer les problèmes de ``dépendance manquante'' ou ``version incompatible''
 \end{itemize}
 
 \subsubsection{Après Docker}
@@ -700,7 +700,7 @@ Cette même commande \texttt{docker-compose up -d} fonctionne \textbf{identiquem
 
 \subsubsection{Conclusion}
 
-Docker élimine la complexité d'installation et permet à n'importe qui de lancer une architecture distribuée sophistiquée avec \textbf{une seule commande}. C'est l'essence du développement moderne : \textbf{« Code une fois, déploie partout »}.
+Docker élimine la complexité d'installation et permet à n'importe qui de lancer une architecture distribuée sophistiquée avec \textbf{une seule commande}. C'est l'essence du développement moderne : \textbf{``Code une fois, déploie partout''}.
 
 \section{Tâche 12 : Déploiement Kubernetes}
 
