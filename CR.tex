@@ -417,74 +417,241 @@ $\rightarrow$ Tous les composants génèrent des erreurs de connexion et l'appli
 
 \section{Task 11 : Conteneurisation Docker}
 
-\subsection{Principes de la Conteneurisation}
+\subsection{Avantages de la Conteneurisation avec Docker}
 
-Docker permet d'empaqueter l'application avec toutes ses dépendances (JRE, librairies, configurations) dans un conteneur léger et portable. Cela garantit que l'application fonctionne de manière identique sur tout environnement : machine de développement, serveur de test, ou cluster de production.
-
-Notre projet utilise une image Docker unique \texttt{fthievon/tweetoscope-kafka:latest} pour tous les microservices (Producer, Filter, Extractor, Counter, Leaderboard). Cette approche est possible car tous les services partagent le même code de base et seul le JAR exécuté change selon le service déployé.
-
-\subsubsection{Travaux Effectués}
+Docker révolutionne le déploiement d'applications en résolvant le problème « ça marche sur ma machine ». Voici les avantages clés :
 
 \begin{itemize}
-    \item \textbf{Création du Dockerfile} : Implémentation d'une stratégie multi-stage avec deux étapes distinctes
-    \begin{itemize}
-        \item Stage 1 (build) : Compilation du projet Maven avec \texttt{maven:3.9-eclipse-temurin-11}
-        \item Stage 2 (runtime) : Image légère \texttt{eclipse-temurin:11-jre-alpine} contenant uniquement la JRE
-    \end{itemize}
-    \item \textbf{Configuration des variables d'environnement} : Mise en place du système pour passer \texttt{SERVICE\_JAR}, \texttt{KAFKA\_BOOTSTRAP\_SERVERS} et \texttt{ARGS}
-    \item \textbf{Build et Push sur DockerHub} : Construction locale et publication de l'image sur le registre public
-    \item \textbf{Exposition du port 8080} : Configuration pour le leaderboard web server
-    \item \textbf{Optimisation de la taille} : Réduction significative par l'utilisation d'une image alpine pour le runtime
+    \item \textbf{Exécutabilité universelle} : Une fois packagée en image Docker, l'application fonctionne \textbf{partout} — sur un laptop en développement, un serveur de test, ou en production — sans modification du code
+    
+    \item \textbf{Dépendances complètes} : L'image contient l'intégralité de l'environnement (OS minimal, JRE, librairies) pour exécuter l'application. Aucune installation préalable requise
+    
+    \item \textbf{Isolation garantie} : Chaque conteneur a son propre système de fichiers, variables d'environnement et processus isolés des autres. Pas de conflits de dépendances
+    
+    \item \textbf{Rapidité de déploiement} : Lancer un conteneur prend quelques secondes, contrairement aux machines virtuelles qui demandent plusieurs minutes
+    
+    \item \textbf{Scalabilité instantanée} : Créer 5 copies identiques d'un service n'est qu'une commande Docker Compose
+    
+    \item \textbf{Reproductibilité} : Les versions exactes de tous les outils (Maven, JRE, Kafka) sont figées. Aucun risque de « version différente qui casse tout »
+    
+    \item \textbf{Portabilité entre environnements} : Le même conteneur s'exécute sur macOS, Linux, Windows, ou cloud (AWS, Azure, Google Cloud)
 \end{itemize}
 
-\subsection{Fichier Dockerfile et Architecture Multi-Stage}
+\subsection{Architecture Multi-Stage du Dockerfile}
 
-Le Dockerfile suit une approche multi-stage pour réduire la taille de l'image finale :
+Nous avons créé un Dockerfile avec une \textbf{architecture multi-stage} pour optimiser l'image finale. Cette approche utilise deux étapes distinctes :
 
-\begin{enumerate}
-    \item \textbf{Stage de compilation} : Utilise \texttt{maven:3.9-eclipse-temurin-11} pour compiler le projet Maven et générer les JARs
-    \item \textbf{Stage d'exécution} : Utilise \texttt{eclipse-temurin:11-jre-alpine} (image légère avec uniquement la JRE) pour exécuter l'application
-\end{enumerate}
+\subsubsection{Stage 1 : Compilation (Build)}
 
-Le conteneur expose le port 8080 (utilisé par le leaderboard web server) et accepte des variables d'environnement pour configurer le service à lancer :
+Cette première étape utilise l'image \texttt{maven:3.9-eclipse-temurin-11} contenant Maven et le compilateur Java. Ses rôles :
 
 \begin{itemize}
-    \item \texttt{SERVICE\_JAR} : Le JAR à exécuter (ex: \texttt{KafkaTweetFilter})
-    \item \texttt{KAFKA\_BOOTSTRAP\_SERVERS} : Adresse du broker Kafka (ex: \texttt{kafka:9092})
-    \item \texttt{ARGS} : Arguments supplémentaires passés au service
+    \item Cloner/copier le code source du projet Tweetoscope
+    \item Compiler le code Java avec Maven
+    \item Générer les fichiers \texttt{.jar} de tous les microservices (KafkaTweetProducer, KafkaTweetFilter, KafkaHashtagExtractor, KafkaHashtagCounter, KafkaLeaderboard)
+    \item Créer les JARs « fat-jar » (avec toutes les dépendances incluses) dans \texttt{target/}
 \end{itemize}
 
-\subsection{Utilisation et Déploiement}
+\subsubsection{Stage 2 : Runtime (Exécution)}
 
-\subsubsection{Construction locale}
+La deuxième étape utilise l'image légère \texttt{eclipse-temurin:11-jre-alpine} (~150 MB) contenant uniquement la JRE, \textbf{sans les outils de compilation}. Ses rôles :
 
-Pour construire l'image Docker localement :
+\begin{itemize}
+    \item Copier les fichiers \texttt{.jar} générés au stage 1
+    \item Configurer les variables d'environnement pour spécifier le service à lancer
+    \item Exposer le port 8080 pour le leaderboard web server
+    \item Lancer le service approprié selon les variables d'environnement passées
+\end{itemize}
+
+\subsubsection{Avantage de cette approche}
+
+\textbf{Réduction de taille} : En éliminant Maven et le compilateur de l'image finale, on obtient une image de \textbf{~200 MB} au lieu de \textbf{800+ MB}. Cela accélère le pull, le déploiement et économise l'espace disque.
+
+\subsubsection{Construction de l'Image}
+
+Pour construire l'image Docker localement (depuis le répertoire contenant le Dockerfile) :
 
 \begin{verbatim}
 docker build -t tweetoscope-kafka .
 \end{verbatim}
 
-\subsubsection{Exécution d'un service}
+\textbf{Résultat :} Une image \texttt{tweetoscope-kafka:latest} prête à être utilisée, contenant tous les services Kafka packagés.
 
-Pour lancer un service spécifique en local :
+\subsubsection{Variables d'environnement}
 
-\begin{verbatim}
-docker run -e SERVICE_JAR=KafkaTweetFilter \
-  -e KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
-  tweetoscope-kafka
-\end{verbatim}
+L'image est paramétrée via trois variables d'environnement permettant de spécifier quel service lancer et comment :
 
-\subsubsection{Publication sur le registre}
+\begin{itemize}
+    \item \texttt{SERVICE\_JAR} : Le nom du JAR à exécuter (ex: \texttt{KafkaTweetFilter}, \texttt{KafkaHashtagCounter})
+    \item \texttt{KAFKA\_BOOTSTRAP\_SERVERS} : L'adresse du broker Kafka (ex: \texttt{kafka:9092} pour Docker Compose)
+    \item \texttt{ARGS} : Arguments supplémentaires (ex: \texttt{lang en} pour le filtre de langue)
+\end{itemize}
 
-Pour déployer en production sur le registre DockerHub :
+\subsection{Publication sur DockerHub}
+
+Après construction locale, l'image est poussée sur le registre public DockerHub pour la rendre accessible à tous :
+
+\subsubsection{Commande de Push}
 
 \begin{verbatim}
 docker push fthievon/tweetoscope-kafka:latest
 \end{verbatim}
 
+\textbf{Résultat :} L'image est maintenant disponible publiquement sur DockerHub à l'adresse \texttt{https://hub.docker.com/r/fthievon/tweetoscope-kafka}.
+
+\textbf{Avantage :} N'importe qui ayant Docker peut maintenant lancer notre application sans réinstaller quoi que ce soit. Une seule commande suffit.
+
+\subsection{Orchestration avec Docker Compose}
+
+Docker Compose permet de \textbf{décrire et lancer} tout l'écosystème Tweetoscope en une seule commande. Le fichier \texttt{docker-compose.yml} définit tous les conteneurs et leurs relations.
+
+\subsubsection{Architecture Complète - 7 Conteneurs en Cascade}
+
+Notre \texttt{docker-compose.yml} orchestre \textbf{7 conteneurs} lancés en cascade :
+
+\textbf{Phase 1 : Infrastructure Kafka}
+
+\begin{enumerate}
+    \item \textbf{Conteneur Kafka} (image : \texttt{apache/kafka:latest})
+    \begin{itemize}
+        \item \textbf{Nom} : \texttt{kafka}
+        \item \textbf{Rôle} : Message broker central stockant les 4 topics (raw-tweets, filtered-tweets, hashtags, leaderboards)
+        \item \textbf{Mode} : KRaft (pas de Zookeeper nécessaire, architecture simplifiée)
+        \item \textbf{Port exposé} : 9092 (Bootstrap server pour la communication intra-cluster)
+        \item \textbf{Vérification santé} : Healthcheck à 6.5 secondes
+        \item \textbf{Topics créés automatiquement} : raw-tweets, filtered-tweets, hashtags, leaderboards
+    \end{itemize}
+
+    \item \textbf{Conteneur Topic Creator} (image : \texttt{edenhill/kcat:latest})
+    \begin{itemize}
+        \item \textbf{Nom} : \texttt{topic-creator}
+        \item \textbf{Rôle} : Crée les 4 topics Kafka nécessaires, puis s'arrête (lifecycle temporaire)
+        \item \textbf{Dépendance} : Attend que Kafka soit \texttt{healthy} (6.5s)
+        \item \textbf{Topics créés} :
+        \begin{itemize}
+            \item \texttt{raw-tweets} : 3 partitions (input du producer)
+            \item \texttt{filtered-tweets} : 3 partitions (output du filter)
+            \item \texttt{hashtags} : 3 partitions (output de l'extractor)
+            \item \texttt{leaderboards} : 1 partition (output du counter)
+        \end{itemize}
+        \item \textbf{Durée} : ~24 secondes, puis \texttt{Exited}
+    \end{itemize}
+\end{enumerate}
+
+\textbf{Phase 2 : Microservices Tweetoscope (basés sur notre image \texttt{fthievon/tweetoscope-kafka:latest})}
+
+\begin{enumerate}
+    \setcounter{enumi}{2}
+    \item \textbf{Conteneur tweetoscope-producer} (image : \texttt{fthievon/tweetoscope-kafka:latest})
+    \begin{itemize}
+        \item \textbf{Rôle} : Produit ~55k tweets aléatoires dans le topic \texttt{raw-tweets}
+        \item \textbf{Commande} : \texttt{java -cp /app/jars/* tweetoscope.kafka.KafkaTweetProducer}
+        \item \textbf{Format de tweet} : \texttt{\{id, text, created\_at, lang, country\_code\}}
+        \item \textbf{Dépendance} : Attend que Kafka soit healthy
+        \item \textbf{Status} : Healthy (24.5s)
+    \end{itemize}
+
+    \item \textbf{Conteneur tweetoscope-filter} (image : \texttt{fthievon/tweetoscope-kafka:latest})
+    \begin{itemize}
+        \item \textbf{Rôle} : Consomme \texttt{raw-tweets}, applique les filtres, produit dans \texttt{filtered-tweets}
+        \item \textbf{Commande} : \texttt{java -cp /app/jars/* tweetoscope.kafka.KafkaTweetFilter}
+        \item \textbf{Filtres appliqués} :
+        \begin{itemize}
+            \item LangTweetFilter : Français uniquement (\texttt{lang == "fr"})
+            \item CountryCodeTweetFilter : France uniquement (\texttt{country\_code == "FR"})
+            \item RecentTweetFilter : Tweets des 24 dernières heures
+            \item EmptyTweetFilter : Exclut les tweets vides
+        \end{itemize}
+        \item \textbf{Output} : ~35k tweets filtrés (60-65\% passent les filtres)
+        \item \textbf{Consumer Group} : \texttt{KafkaTweetFilter-Group}
+        \item \textbf{Status} : Healthy (0.5s)
+    \end{itemize}
+
+    \item \textbf{Conteneur tweetoscope-extractor} (image : \texttt{fthievon/tweetoscope-kafka:latest})
+    \begin{itemize}
+        \item \textbf{Rôle} : Consomme \texttt{filtered-tweets}, extrait les hashtags, produit dans \texttt{hashtags}
+        \item \textbf{Commande} : \texttt{java -cp /app/jars/* tweetoscope.kafka.KafkaHashtagExtractor}
+        \item \textbf{Format de message} : Un message par hashtag trouvé
+        \item \textbf{Output} : ~15k+ hashtags extraits
+        \item \textbf{Consumer Group} : \texttt{myOwnPrivateJavaGroup}
+        \item \textbf{Status} : Healthy (0.5s)
+    \end{itemize}
+
+    \item \textbf{Conteneur tweetoscope-counter} (image : \texttt{fthievon/tweetoscope-kafka:latest})
+    \begin{itemize}
+        \item \textbf{Rôle} : Consomme \texttt{hashtags}, agrège les comptages, produit dans \texttt{leaderboards}
+        \item \textbf{Commande} : \texttt{java -cp /app/jars/* tweetoscope.kafka.KafkaHashtagCounter}
+        \item \textbf{Fonctionnement} : Maintient un état en mémoire du comptage, publie le classement complet toutes les 1-2 secondes
+        \item \textbf{Output} : JSON avec top hashtags : \texttt{\{"#fun":5347,"#CS":4438,"#Metz":4368\}}
+        \item \textbf{Consumer Group} : \texttt{myOwnPrivateJavaGroup}
+        \item \textbf{Status} : Healthy (26.1s)
+    \end{itemize}
+
+    \item \textbf{Conteneur tweetoscope-leaderboard} (image : \texttt{fthievon/tweetoscope-kafka:latest})
+    \begin{itemize}
+        \item \textbf{Rôle} : Affiche le leaderboard en temps réel via Web UI et JSON API
+        \item \textbf{Commande} : \texttt{java -cp /app/jars/* tweetoscope.kafka.KafkaLeaderboard true}
+        \item \textbf{Port exposé} : 8080 (mapé vers \texttt{http://localhost:8080})
+        \item \textbf{Endpoints} :
+        \begin{itemize}
+            \item \texttt{GET /} : Page HTML interactive avec auto-refresh (2s)
+            \item \texttt{GET /api/leaderboard} : API JSON avec le classement actuel
+        \end{itemize}
+        \item \textbf{Fonctionnement} : Consomme le topic \texttt{leaderboards}, affiche les résultats en continu
+        \item \textbf{Status} : Running (0.0s au démarrage)
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{Flux de Données dans Docker Compose}
+
+\subsubsection{Dépendances et Ordre de Lancement}
+
+\begin{verbatim}
+1. Kafka (start)
+2. Topic-Creator (wait for kafka healthy, create topics, exit)
+3. Producer (wait for kafka healthy)
+4. Filter (wait for kafka healthy)
+5. Extractor (wait for kafka healthy)
+6. Counter (wait for kafka healthy)
+7. Leaderboard (wait for kafka healthy, expose :8080)
+\end{verbatim}
+
+\subsubsection{Commande de Lancement}
+
+Pour lancer toute l'architecture en cascade :
+
+\begin{verbatim}
+docker-compose up -d
+\end{verbatim}
+
+\textbf{Flags} :
+\begin{itemize}
+    \item \texttt{up} : Crée et démarre tous les conteneurs définis dans docker-compose.yml
+    \item \texttt{-d} : Détaché (background). Les logs s'affichent, mais on retrouve le prompt
+\end{itemize}
+
+\textbf{Processus automatique} :
+\begin{enumerate}
+    \item Docker pull les images depuis DockerHub (\texttt{fthievon/tweetoscope-kafka}, \texttt{apache/kafka}, \texttt{edenhill/kcat})
+    \item Création d'un réseau Docker interne (\texttt{initialtweetoscope\_tweetoscope})
+    \item Lancement de Kafka en premier
+    \item Topic-Creator attend que Kafka soit healthy, crée les 4 topics, puis s'arrête
+    \item Lancement en parallèle des 5 microservices Tweetoscope (ils attendent tous que Kafka soit ready)
+    \item Exposition du port 8080 sur localhost pour accéder à la web UI du leaderboard
+\end{enumerate}
+
+\textbf{Résultat après ~30-45 secondes} : Une architecture Tweetoscope \textbf{complètement fonctionnelle}, traitant les tweets en temps réel avec :
+\begin{itemize}
+    \item Producer générant des tweets
+    \item Filter réduisant le volume
+    \item Extractor extrayant les hashtags
+    \item Counter agrégeant les comptages
+    \item Leaderboard affichant les résultats en temps réel sur \texttt{http://localhost:8080}
+\end{itemize}
+
 \subsection{Interface Web du Leaderboard}
 
-Une fois Docker Compose démarré avec tous les services, le leaderboard est accessible localement à l'adresse \texttt{http://localhost:8080}. L'interface affiche en temps réel le classement des hashtags les plus populaires extraits des tweets filtrés.
+Une fois Docker Compose démarré, le leaderboard est accessible localement à l'adresse \texttt{http://localhost:8080}. L'interface affiche en temps réel le classement des hashtags les plus populaires extraits des tweets filtrés.
 
 \begin{figure}[H]
 \centering
@@ -493,15 +660,47 @@ Une fois Docker Compose démarré avec tous les services, le leaderboard est acc
 \label{fig:leaderboard-localhost}
 \end{figure}
 
-\subsection{Avantages de la Conteneurisation}
+\subsection{Conclusion : Une Architecture Production-Ready}
 
-$\rightarrow$ \textbf{Portabilité} : L'image fonctionne sur tout environnement ayant Docker
+Grâce à Docker et Docker Compose, nous avons transformé un système complexe de 6 composants interdépendants en une \textbf{architecture entièrement déployable en une seule commande}.
 
-$\rightarrow$ \textbf{Isolation} : Chaque conteneur a son propre système de fichiers et ses ressources
+\subsubsection{Avant Docker}
 
-$\rightarrow$ \textbf{Scalabilité} : On peut rapidement créer plusieurs instances d'un même service
+Pour mettre en place Tweetoscope, il fallait :
+\begin{itemize}
+    \item Installer Java 11
+    \item Installer Maven 3.9
+    \item Installer Kafka
+    \item Cloner le projet, compiler avec Maven
+    \item Manuellement démarrer Kafka, puis chaque microservice
+    \item Configurer les variables d'environnement, les ports, les topics
+    \item Déboguer les problèmes de « dépendance manquante » ou « version incompatible »
+\end{itemize}
 
-$\rightarrow$ \textbf{Reproductibilité} : Les mêmes versions des dépendances sont utilisées partout
+\subsubsection{Après Docker}
+
+Avec Docker Compose, il suffit de :
+\begin{enumerate}
+    \item Avoir Docker installé (c'est tout)
+    \item Cloner le projet Tweetoscope
+    \item Exécuter : \texttt{docker-compose up -d}
+    \item Attendre 30 secondes
+    \item Accéder à \texttt{http://localhost:8080}
+\end{enumerate}
+
+\subsubsection{Portabilité}
+
+Cette même commande \texttt{docker-compose up -d} fonctionne \textbf{identiquement} sur :
+\begin{itemize}
+    \item Un ordinateur personnel (macOS, Windows, Linux)
+    \item Un serveur en cloud (AWS, Azure, Google Cloud)
+    \item Un cluster Kubernetes
+    \item Un collègue qui clone le repo pour la première fois
+\end{itemize}
+
+\subsubsection{Conclusion}
+
+Docker élimine la complexité d'installation et permet à n'importe qui de lancer une architecture distribuée sophistiquée avec \textbf{une seule commande}. C'est l'essence du développement moderne : \textbf{« Code une fois, déploie partout »}.
 
 \section{Task 12 : Orchestration Kubernetes}
 
